@@ -55,16 +55,6 @@
         .narrative-box::before { margin-bottom: 0.5rem; }
         .narrative-box::after { margin-top: 0.5rem; transform: rotate(180deg); }
 
-        .controls-scroll {
-            background: #e3d5b8; color: #2c2215; padding: 1.5rem 3rem;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-            font-weight: bold; font-family: var(--font-display);
-            clip-path: polygon(3% 0, 100% 1%, 100% 100%, 0% 100%, 0 5%);
-            transform: rotate(-1deg);
-        }
-        .controls-scroll ul { list-style: none; padding: 0; margin: 0; text-align: left; }
-        .controls-scroll li { margin: 0.5rem 0; border-bottom: 1px solid rgba(44, 34, 21, 0.2); }
-
         .btn-start {
             background: transparent; color: var(--accent-color);
             font-family: var(--font-display); font-size: 2rem;
@@ -198,18 +188,10 @@
         Die alten Mauern halten der Realität nicht mehr stand. Die Zeit springt, Räume verschieben sich. 
         Wirst du den Kern erreichen, bevor deine Existenz ausgelöscht wird?
     </div>
-    <div class="controls-scroll">
-        <ul>
-            <li><strong>WASD</strong> &nbsp;&mdash;&nbsp; Bewegen / Angreifen</li>
-            <li><strong>SPACE</strong> &nbsp;&mdash;&nbsp; Warten / Interagieren</li>
-            <li><strong>B</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&mdash;&nbsp; Bannkreis zünden</li>
-            <li><strong>1 - 9</strong> &nbsp;&nbsp;&nbsp;&mdash;&nbsp; Shop Auswahl</li>
-        </ul>
-    </div>
     <div class="class-select" id="class-btns">
         <!-- Generiert durch JS -->
     </div>
-    <footer><a href="#">Impressum</a></footer>
+    <footer><span onclick="delSave()" style="cursor:pointer;border-bottom:1px dotted #8a0b0b;color:#8a0b0b;margin-right:15px">RESET</span><a href="#">Impressum</a></footer>
 </div>
 
 <!-- GAME WRAPPER -->
@@ -479,6 +461,8 @@ function movePlayer(dx, dy) {
   if(game.map[ny][nx]===1) {
     let k = `${nx},${ny}`;
     if(game.walls[k]) {
+      if(meta.stam<2){addParticle(game.p.x,game.p.y,"MÜDE!",'#555');return false;}
+      meta.stam-=2;
       game.p.actNoise = 3; // Loud Mining
       game.walls[k] -= meta.mine; 
       addParticle(nx, ny, "RISS", '#777');
@@ -495,6 +479,8 @@ function movePlayer(dx, dy) {
   // Enemy Interaction
   let target = game.enemies.find(e=>e.x===nx && e.y===ny);
   if(target) {
+    if(meta.stam<3){addParticle(game.p.x,game.p.y,"MÜDE!",'#555');return false;}
+    meta.stam-=3;
     game.p.actNoise = 3; // Loud Attack
     sfx('attack');
     let isCrit = Math.random()<game.stats.critChance;
@@ -846,6 +832,7 @@ function genItem(lvl){
 }
 function calcStats(){game.stats={...meta};Object.values(game.equipment).forEach(it=>{if(it)Object.keys(it.mods).forEach(k=>game.stats[k]=(game.stats[k]||0)+it.mods[k]);});game.stats.critChance=Math.min(1.0,game.stats.critChance);game.stats.dodgeChance=Math.min(0.75,game.stats.dodgeChance);}
 function save(){localStorage.setItem('GD4_Dark_Save',JSON.stringify(meta));}
+function delSave(){if(confirm('Alles löschen?')){localStorage.removeItem('GD4_Dark_Save');location.reload();}}
 function triggerGameOver(){game.mode='SHOP';game.rerollCost=10;generateShop();document.getElementById('btn-reincarnate').style.display='block';save();}
 function generateShop(){game.shopItems=[];let slots=meta.shopSlots;if(meta.lockedItems&&meta.lockedItems.length>0){meta.lockedItems.forEach(li=>{if(game.shopItems.length<slots){let base=ITEM_POOL.find(i=>i.name===li.itemName),tier=RARITIES.find(r=>r.name===li.tierName);if(base&&tier)game.shopItems.push({idx:game.shopItems.length+1,item:base,tier,cost:li.cost,purchased:false,locked:true});}});meta.lockedItems=[];}while(game.shopItems.length<slots){let base=ITEM_POOL[rnd(0,ITEM_POOL.length-1)],roll=Math.random()*100-meta.shopLuck,rIndex=0;for(let i=RARITIES.length-1;i>=0;i--)if(roll<RARITIES[i].chance){rIndex=i;break;}let tier=RARITIES[rIndex],cost=Math.floor(base.baseCost*tier.mul);game.shopItems.push({idx:game.shopItems.length+1,item:base,tier,cost,purchased:false,locked:false});}}
 function respawn(){meta.hp=meta.maxHp;meta.lockedItems=game.shopItems.filter(i=>i.locked&&!i.purchased).map(i=>({itemName:i.item.name,tierName:i.tier.name,cost:i.cost}));game.mode='GAME';startLevel(1);}
