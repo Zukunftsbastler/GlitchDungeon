@@ -913,6 +913,11 @@ function updateUI(){
     }
     let sBtn=document.getElementById('btn-skill'), c=meta.class;
     let cost=(c==='MAGE')?5:5, res=(c==='MAGE')?meta.mana:meta.stam;
+    
+    // Tooltip & Visuals
+    let sName = (c==='WARRIOR')?"Wirbelwind":(c==='ROGUE')?"Unsichtbarkeit":"Feuerball";
+    sBtn.setAttribute('data-t', `${sName} (B)`);
+
     // Rogue/Mage Toggle visual
     if(c==='ROGUE') {
         if(game.p.hidden) sBtn.style.borderColor = "#0f0"; else sBtn.style.borderColor = "#555";
