@@ -161,11 +161,12 @@
         }
         #dpad { display: grid; grid-template-areas: ". u ." "l d r"; gap: 4px; }
         #dpad button { background: #111; border: 1px solid #444; color: #888; cursor: pointer; font-size: 1.2rem; padding:0; }
-        #actions { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+        #actions { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
         #actions button {
             background: #111; border: 1px solid #555; color: #ccc; font-size: 1.5rem; cursor: pointer; padding:0;
             display: flex; align-items: center; justify-content: center;
         }
+        .stam-low { color: #f00 !important; text-shadow: 0 0 5px #f00; animation: pulse 0.5s infinite; }
         #actions button:active, #dpad button:active { border-color: var(--accent-color); color: var(--accent-color); }
         .disabled { filter: grayscale(1) brightness(0.3); pointer-events: none; border-color: #222 !important; }
         #tt { position:fixed; background:rgba(0,0,0,0.9); border:1px solid #888; padding:5px; pointer-events:none; display:none; z-index:100; font-size:12px; white-space:pre; }
@@ -202,11 +203,11 @@
             <div data-t="Gesundheit">HP: <span id="ui-hp">10</span> <span id="ui-key"></span></div>
             <div style="color:#8a0b0b" data-t="Züge bis zum Realitätsbruch">REALITÄT: <span id="ui-glitch">20</span></div>
             <div style="color:#ffd700" data-t="Gesammeltes Gold">GOLD: <span id="ui-bits">0</span></div>
-            <div style="color:#f60" data-t="Ritual-Rollen">BANNKREIS: <span id="ui-bombs">0</span></div>
+            <div style="color:#f60" data-t="Ritual-Rollen (F)">BANNKREIS: <span id="ui-scrolls">0</span></div>
         </div>
         <div class="stat-row">
             <div style="color:#0af" data-t="Magische Energie">MANA: <span id="ui-mana">0/0</span></div>
-            <div style="color:#dd0" data-t="Physische Ausdauer">AUSDAUER: <span id="ui-stam">0/0</span></div>
+            <div style="color:#dd0" data-t="Physische Ausdauer (Sinkt im Stealth!)">AUSDAUER: <span id="ui-stam">0/0</span></div>
             <div style="color:#aaa" data-t="Gewählte Klasse">KLASSE: <span id="ui-class">-</span></div>
         </div>
     </div>
@@ -222,9 +223,10 @@
         <div id="actions">
             <button onclick="act('ATK')" data-t="Angriff (Richtung)">⚔️</button>
             <button id="btn-skill" onclick="act('SKILL')" data-t="Spezialfähigkeit (B)">⚡</button>
-            <button onclick="act('HELP')" data-t="Hilfe">📜</button>
+            <button id="btn-item" onclick="act('ITEM')" data-t="Bannkreis (F)">📜</button>
             <button onclick="act('WAIT')" data-t="Warten (Space)">⏳</button>
             <button onclick="act('INV')" data-t="Inventar (I)">🎒</button>
+            <button onclick="act('HELP')" data-t="Hilfe">?</button>
         </div>
     </div>
     <button id="btn-reincarnate" onclick="respawn()">Reinkarnation</button>
@@ -300,6 +302,7 @@ const RARITIES = R_NAMES.map((n,i) => ({name:n, mul:1+i*0.8, chance:Math.max(0.1
 
 const ITEM_POOL = [
   {name:'Heiltrank',vis:'POTION',baseCost:10,unit:'HP',calc:t=>(5*t.mul)|0,run:(m,v)=>m.hp=Math.min(m.hp+v,game.stats.maxHp)},
+  {name:'Manatrank',vis:'POTION',baseCost:15,unit:'MANA',calc:t=>(10*t.mul)|0,run:(m,v)=>m.mana=Math.min(m.mana+v,game.stats.maxMana)},
   {name:'Vitalität',vis:'POTION',baseCost:40,unit:'MAXHP',calc:t=>(2*t.mul)|0,run:(m,v)=>{m.maxHp+=v;m.hp+=v;calcStats()}},
   {name:'Schärfe',vis:'WEAPON',baseCost:60,unit:'DMG',calc:t=>(1*t.mul)|0,run:(m,v)=>{m.dmg+=v;calcStats()}},
   {name:'Glück',vis:'RELIC',baseCost:100,unit:'LUCK',calc:t=>(1*t.mul)|0,run:(m,v)=>{m.shopLuck+=v;calcStats()}},
@@ -308,13 +311,13 @@ const ITEM_POOL = [
   {name:'Präzision',vis:'WEAPON',baseCost:80,unit:'%',calc:t=>parseFloat((0.02*t.mul).toFixed(2)),run:(m,v)=>{m.critChance+=v;calcStats()}},
   {name:'Reflexe',vis:'ARMOR',baseCost:80,unit:'%',calc:t=>parseFloat((0.02*t.mul).toFixed(2)),run:(m,v)=>{m.dodgeChance+=v;calcStats()}},
   {name:'Gier',vis:'CHEST',baseCost:70,unit:'%',calc:t=>parseFloat((0.1*t.mul).toFixed(1)),run:(m,v)=>{m.lootMul+=v;calcStats()}},
-  {name:'Bannkreis',vis:'RELIC',baseCost:50,unit:'ROLLE',calc:t=>Math.max(1,1*t.mul|0),run:(m,v)=>m.bombs=(m.bombs||0)+v},
+  {name:'Bannkreis',vis:'RELIC',baseCost:50,unit:'ROLLE',calc:t=>Math.max(1,1*t.mul|0),run:(m,v)=>m.scrolls=(m.scrolls||0)+v},
   {name:'Fackelschein',vis:'RELIC',baseCost:40,unit:'LUMEN',calc:t=>(30*t.mul)|0,run:(m,v)=>{m.torchRadius=(m.torchRadius||150)+v;calcStats()}},
   {name:'Lichtbringer',vis:'RELIC',baseCost:80,unit:'FACKEL',calc:t=>Math.max(1,1*t.mul|0),run:(m,v)=>{m.torchCount=(m.torchCount||2)+v;calcStats()}}
 ];
 
 // --- STATE ---
-let meta = { bits:0, hp:10, maxHp:10, mana:10, maxMana:10, stam:10, maxStam:10, dmg:1, mine:1, noise:5, speed:10, class:'WARRIOR', critChance:0.05, dodgeChance:0.05, lootMul:1.0, glitchMod:0, bombs:0, torchCount:2, torchRadius:150, maxLvl:1, shopSlots:3, shopLuck:0, lockedItems:[] };
+let meta = { bits:0, hp:10, maxHp:10, mana:10, maxMana:10, stam:10, maxStam:10, dmg:1, mine:1, noise:5, speed:10, class:'WARRIOR', critChance:0.05, dodgeChance:0.05, lootMul:1.0, glitchMod:0, scrolls:0, torchCount:2, torchRadius:150, maxLvl:1, shopSlots:3, shopLuck:0, lockedItems:[] };
 // Note: We don't load everything from save for class/stats reset on run start, but we keep meta progression (bits, maxLvl, etc if we had any rogue-lite elements, but current code resets hp on reincarnate).
 // Actually, let's keep it simple: meta is "run state".
 if(localStorage.getItem('GD4_Dark_Save')) {
@@ -322,7 +325,7 @@ if(localStorage.getItem('GD4_Dark_Save')) {
     meta.bits = s.bits; meta.maxLvl = s.maxLvl; meta.shopSlots=s.shopSlots; meta.shopLuck=s.shopLuck;
 }
 
-let game = { mode:'GAME', map:[], walls:{}, level:1, biome:0, p:{x:1,y:1,en:0,dir:{x:0,y:1}}, enemies:[], items:[], particles:[], shopItems:[], torches:[], inventory:[], equipment:{WEAPON:null,ARMOR:null,RELIC:null}, stats:{}, key:{x:0,y:0}, exit:{x:0,y:0}, timers:{glitch:25,stun:0,shake:0}, lockMode:false, rerollCost:10, lockInput:false };
+let game = { mode:'GAME', map:[], walls:{}, level:1, biome:0, p:{x:1,y:1,en:0,dir:{x:0,y:1}, hidden:false}, enemies:[], items:[], particles:[], shopItems:[], torches:[], inventory:[], equipment:{WEAPON:null,ARMOR:null,RELIC:null}, stats:{}, key:{x:0,y:0}, exit:{x:0,y:0}, timers:{glitch:25,stun:0,shake:0}, lockMode:false, rerollCost:10, lockInput:false, aiming:false, mouse:{x:0,y:0} };
 
 // --- LOGIC ---
 // Init Class Buttons
@@ -365,6 +368,10 @@ function initGame(startItem) {
 
 function startLevel(lvl) {
   document.getElementById('btn-reincarnate').style.display='none';
+  if(lvl > game.level) { // Level complete
+      meta.mana = Math.min(meta.maxMana, meta.mana + Math.floor(meta.maxMana/3));
+      addParticle(game.p.x||0, game.p.y||0, "MANA +", '#0af');
+  }
   game.level=lvl;
   if(lvl>meta.maxLvl){meta.maxLvl=lvl;save();}
   
@@ -382,7 +389,7 @@ function startLevel(lvl) {
   // Colors
   C.WALL=B.c[0]; C.FLOOR=B.c[1]; C.PL=B.c[3];
 
-  game.p.hasKey=false; game.timers.glitch=25+meta.glitchMod; game.timers.stun=0;
+  game.p.hasKey=false; game.p.hidden=false; game.timers.glitch=25+meta.glitchMod; game.timers.stun=0;
   game.enemies=[]; game.items=[]; game.particles=[]; game.torches=[]; game.walls={};
   
   meta.hp = Math.min(meta.hp, meta.maxHp); if(meta.hp<=0)meta.hp=meta.maxHp;
@@ -449,6 +456,7 @@ function spawnActors() {
   
   // Items & Torches
   for(let i=0;i<3;i++) { let p=getFree(); game.items.push(Math.random()<0.3?{x:p.x,y:p.y,type:'EQUIP',val:genItem(game.level)}:{x:p.x,y:p.y,type:rnd(0,3)}); }
+  // Chance for Mana potion on ground? Let's repurpose Type 1 (Stille -> Mana)
   for(let i=0;i<(game.stats.torchCount||2);i++) game.torches.push(getFree());
 }
 
@@ -461,6 +469,7 @@ function movePlayer(dx, dy) {
   if(game.map[ny][nx]===1) {
     let k = `${nx},${ny}`;
     if(game.walls[k]) {
+      if(game.p.hidden){addParticle(game.p.x,game.p.y,"Psst...",'#555');return false;} // Stealth cannot mine
       if(meta.stam<2){addParticle(game.p.x,game.p.y,"MÜDE!",'#555');return false;}
       meta.stam-=2;
       game.p.actNoise = 3; // Loud Mining
@@ -479,6 +488,7 @@ function movePlayer(dx, dy) {
   // Enemy Interaction
   let target = game.enemies.find(e=>e.x===nx && e.y===ny);
   if(target) {
+    if(game.p.hidden){addParticle(game.p.x,game.p.y,"Psst...",'#555');return false;} // Stealth cannot attack
     if(meta.stam<3){addParticle(game.p.x,game.p.y,"MÜDE!",'#555');return false;}
     meta.stam-=3;
     game.p.actNoise = 3; // Loud Attack
@@ -524,8 +534,22 @@ function processTurns() {
 
         if(game.p.energy >= 100) {
             game.lockInput = false;
-            meta.mana = Math.min(meta.maxMana, meta.mana + 0.5); // Mana regen
-            meta.stam = Math.min(meta.maxStam, meta.stam + 1);   // Stamina regen
+            
+            // Player Turn Start Logic
+            // Mana regen removed
+            
+            if(game.p.hidden) {
+               meta.stam -= 3;
+               if(meta.stam <= 0) {
+                   meta.stam=0;
+                   game.p.hidden=false;
+                   addParticle(game.p.x, game.p.y, "AUFGEDECKT!", '#f00');
+                   sfx('hit');
+               }
+            } else {
+               meta.stam = Math.min(meta.maxStam, meta.stam + 1); // Stamina regen
+            }
+
             turnLogic(); // Update Game World / UI once per player turn roughly
             return;
         }
@@ -555,6 +579,7 @@ function processTurns() {
 }
 
 function checkAggro(e) {
+    if(game.p.hidden) return false; // Rogue Stealth
     if(e.state === 'HUNT') return true;
     let d = Math.hypot(game.p.x - e.x, game.p.y - e.y);
     let steps = Math.ceil(d), wallDamp = 0;
@@ -607,10 +632,7 @@ function turnLogic() {
   if(!game.p.hasKey && game.p.x===game.key.x && game.p.y===game.key.y) { game.p.hasKey=true; game.key={x:-1,y:-1}; sfx('shop'); addParticle(game.p.x, game.p.y, "SCHLÜSSEL", C.BITS); }
   if(game.p.hasKey && game.p.x===game.exit.x && game.p.y===game.exit.y) { startLevel(game.level+1); return; }
 
-  // Global Glitch Timer (tick on player turn or global tick?)
-  // Prompt says "Turn-System ... allows rogue to move 2x". Glitch timer should probably be based on global time or player turns.
-  // Let's stick to Player Turns for Glitch Timer to be predictable.
-  
+  // Global Glitch Timer
   game.timers.glitch--;
   if(game.timers.glitch<=0) {
     game.timers.glitch=25+game.stats.glitchMod; game.timers.shake=5; sfx('glitch'); addParticle(game.p.x,game.p.y,"REALITÄTSBRUCH",'#f0f');
@@ -677,13 +699,34 @@ function drawGame() {
     CTX.fillStyle='#0f0';CTX.fillRect(e.x*TILE,e.y*TILE-8,32*(e.hp/e.max),2);
   });
   
+  // Player Drawing with Stealth
+  if(game.p.hidden) {
+      CTX.save();
+      CTX.globalAlpha = 0.5;
+  }
   drawSprite(CTX,game.p.x*TILE,game.p.y*TILE,1337,'HERO',C.PL);
+  if(game.p.hidden) {
+      CTX.restore();
+      // Stealth Particle Effect
+      if(Math.random()<0.3) addParticle(game.p.x, game.p.y, "...", "#888");
+  }
+
+  if(game.aiming && meta.class==='MAGE') {
+      let v = hasLOS(game.p.x, game.p.y, game.mouse.x, game.mouse.y);
+      CTX.strokeStyle = v ? '#0f0' : '#f00'; CTX.lineWidth=2;
+      CTX.strokeRect(game.mouse.x*TILE, game.mouse.y*TILE, TILE, TILE);
+      CTX.beginPath(); CTX.moveTo(game.p.x*TILE+16, game.p.y*TILE+16);
+      CTX.lineTo(game.mouse.x*TILE+16, game.mouse.y*TILE+16); CTX.stroke();
+  }
+
   game.particles.forEach(p=>{CTX.globalAlpha=p.life/40;CTX.fillStyle=p.col;CTX.font="bold 12px serif";CTX.fillText(p.txt,p.x,p.y);}); CTX.globalAlpha=1;
 
   // Light
   L_CTX.globalCompositeOperation='source-over'; L_CTX.fillStyle='rgba(0,0,0,0.95)'; L_CTX.fillRect(0,0,640,640);
   L_CTX.globalCompositeOperation='destination-out';
   const drawLight=(x,y,r)=>{let g=L_CTX.createRadialGradient(x,y,r*0.2,x,y,r);g.addColorStop(0,'rgba(0,0,0,1)');g.addColorStop(1,'rgba(0,0,0,0)');L_CTX.fillStyle=g;L_CTX.beginPath();L_CTX.arc(x,y,r,0,Math.PI*2);L_CTX.fill();};
+  
+  // Torch/Player Light (dimmed if hidden?) - No req, but let's keep it.
   drawLight(game.p.x*TILE+16,game.p.y*TILE+16,250);
   game.torches.forEach(t=>drawLight(t.x*TILE+16,t.y*TILE+16,(game.stats.torchRadius||150)+Math.random()*10-5));
   CTX.drawImage(L_CVS,0,0);
@@ -837,17 +880,20 @@ function triggerGameOver(){game.mode='SHOP';game.rerollCost=10;generateShop();do
 function generateShop(){game.shopItems=[];let slots=meta.shopSlots;if(meta.lockedItems&&meta.lockedItems.length>0){meta.lockedItems.forEach(li=>{if(game.shopItems.length<slots){let base=ITEM_POOL.find(i=>i.name===li.itemName),tier=RARITIES.find(r=>r.name===li.tierName);if(base&&tier)game.shopItems.push({idx:game.shopItems.length+1,item:base,tier,cost:li.cost,purchased:false,locked:true});}});meta.lockedItems=[];}while(game.shopItems.length<slots){let base=ITEM_POOL[rnd(0,ITEM_POOL.length-1)],roll=Math.random()*100-meta.shopLuck,rIndex=0;for(let i=RARITIES.length-1;i>=0;i--)if(roll<RARITIES[i].chance){rIndex=i;break;}let tier=RARITIES[rIndex],cost=Math.floor(base.baseCost*tier.mul);game.shopItems.push({idx:game.shopItems.length+1,item:base,tier,cost,purchased:false,locked:false});}}
 function respawn(){meta.hp=meta.maxHp;meta.lockedItems=game.shopItems.filter(i=>i.locked&&!i.purchased).map(i=>({itemName:i.item.name,tierName:i.tier.name,cost:i.cost}));game.mode='GAME';startLevel(1);}
 function isBlocked(x,y){if(game.map[y][x]===1)return true;if(game.enemies.some(e=>e.x===x&&e.y===y))return true;return false;}
-function checkPickups(){let idx=game.items.findIndex(i=>i.x===game.p.x&&i.y===game.p.y);if(idx>=0){sfx('shop');let item=game.items[idx];game.items.splice(idx,1);if(item.type==='EQUIP'){if(game.inventory.length<10){game.inventory.push(item.val);addParticle(game.p.x,game.p.y,item.val.name,item.val.col);}else{addParticle(game.p.x,game.p.y,"VOLL!",'#f00');game.items.push(item);return;}}else{if(item.type===0){meta.hp=Math.min(meta.hp+5,game.stats.maxHp);addParticle(game.p.x,game.p.y,"HEILUNG",'#0f0');}if(item.type===1){game.timers.stun=10;addParticle(game.p.x,game.p.y,"STILLE",'#00f');}if(item.type===2){let b=Math.floor((10+game.level*5)*game.stats.lootMul);meta.bits+=b;addParticle(game.p.x,game.p.y,`+${b}`,C.BITS);}if(item.type===3&&meta.bombs<5){meta.bombs++;addParticle(game.p.x,game.p.y,"RITUAL",'#f60');}}}}
+function checkPickups(){let idx=game.items.findIndex(i=>i.x===game.p.x&&i.y===game.p.y);if(idx>=0){sfx('shop');let item=game.items[idx];game.items.splice(idx,1);if(item.type==='EQUIP'){if(game.inventory.length<10){game.inventory.push(item.val);addParticle(game.p.x,game.p.y,item.val.name,item.val.col);}else{addParticle(game.p.x,game.p.y,"VOLL!",'#f00');game.items.push(item);return;}}else{if(item.type===0){meta.hp=Math.min(meta.hp+5,game.stats.maxHp);addParticle(game.p.x,game.p.y,"HEILUNG",'#0f0');}if(item.type===1){meta.mana=Math.min(meta.mana+10,game.stats.maxMana);addParticle(game.p.x,game.p.y,"MANA",'#0af');}if(item.type===2){let b=Math.floor((10+game.level*5)*game.stats.lootMul);meta.bits+=b;addParticle(game.p.x,game.p.y,`+${b}`,C.BITS);}if(item.type===3&&meta.scrolls<5){meta.scrolls++;addParticle(game.p.x,game.p.y,"RITUAL",'#f60');}}}}
 function updateUI(){
     document.getElementById('ui-lvl').innerText=game.level;
     document.getElementById('ui-hp').innerText=Math.round(meta.hp)+"/"+game.stats.maxHp;
     document.getElementById('ui-glitch').innerText=game.timers.glitch;
     document.getElementById('ui-bits').innerText=meta.bits;
-    document.getElementById('ui-bombs').innerText=meta.bombs||0;
+    document.getElementById('ui-scrolls').innerText=meta.scrolls||0;
     document.getElementById('ui-key').innerText=game.p.hasKey?"[SCHLÜSSEL]":"";
     
     document.getElementById('ui-mana').innerText=Math.floor(meta.mana)+"/"+meta.maxMana;
-    document.getElementById('ui-stam').innerText=Math.floor(meta.stam)+"/"+meta.maxStam;
+    let sEl = document.getElementById('ui-stam');
+    sEl.innerText=Math.floor(meta.stam)+"/"+meta.maxStam;
+    if(meta.stam<3 || (game.p.hidden && meta.stam<5)) sEl.classList.add('stam-low'); else sEl.classList.remove('stam-low');
+
     document.getElementById('ui-class').innerText=CLASSES[meta.class].n;
     
     // Target UI
@@ -867,7 +913,58 @@ function updateUI(){
     }
     let sBtn=document.getElementById('btn-skill'), c=meta.class;
     let cost=(c==='MAGE')?5:5, res=(c==='MAGE')?meta.mana:meta.stam;
-    if(res<cost)sBtn.classList.add('disabled');else sBtn.classList.remove('disabled');
+    // Rogue/Mage Toggle visual
+    if(c==='ROGUE') {
+        if(game.p.hidden) sBtn.style.borderColor = "#0f0"; else sBtn.style.borderColor = "#555";
+        if(!game.p.hidden && res < 5) sBtn.classList.add('disabled'); else sBtn.classList.remove('disabled');
+    } else if(c==='MAGE') {
+        if(game.aiming) sBtn.style.borderColor = "#f0f"; else sBtn.style.borderColor = "#555";
+        if(!game.aiming && res < 5) sBtn.classList.add('disabled'); else sBtn.classList.remove('disabled');
+    } else {
+        sBtn.style.borderColor = "#555";
+        if(res<cost)sBtn.classList.add('disabled');else sBtn.classList.remove('disabled');
+    }
+    
+    let iBtn=document.getElementById('btn-item');
+    if(meta.scrolls > 0) iBtn.classList.remove('disabled'); else iBtn.classList.add('disabled');
+}
+
+function useConsumable() {
+    if((meta.scrolls||0) <= 0) {
+        sfx('hit'); // Error sound
+        addParticle(game.p.x, game.p.y, "KEINE ROLLEN!", '#f00');
+        return;
+    }
+    meta.scrolls--;
+    sfx('glitch');
+    addParticle(game.p.x, game.p.y, "BANNKREIS!", '#f60');
+    // Stun and dmg enemies in sight
+    let count = 0;
+    game.enemies.forEach(e => {
+        let d = Math.hypot(e.x - game.p.x, e.y - game.p.y);
+        // Simple sight check: Distance < TorchRadius(converted to tiles roughly)
+        // Torch radius is pixels, TILE is 32. 150/32 ~= 4.6
+        // Let's use torch radius logic exactly or simplified 6 tiles.
+        // Also check if wall blocks? Raycasting is expensive, let's just use distance + wall dampening from checkAggro logic roughly
+        let isVisible = true;
+        // Re-use simplified Line of Sight from checkAggro inverse?
+        // Let's just use simple distance for simplicity and "Magic" nature of scroll
+        if(d < 6) {
+             e.hp -= 5;
+             e.stun = 3;
+             addParticle(e.x, e.y, "GEBANNT (5)", '#fff');
+             count++;
+             if(e.hp<=0) {
+                 game.enemies=game.enemies.filter(x=>x!==e);
+                 meta.bits+=e.bits; addParticle(e.x,e.y,`+${e.bits}`,C.BITS);
+             }
+        }
+    });
+    if(count===0) addParticle(game.p.x, game.p.y, "NIEMAND DA...", '#777');
+    
+    game.p.energy -= 100;
+    updateUI();
+    processTurns();
 }
 
 function useSkill() {
@@ -875,6 +972,24 @@ function useSkill() {
     let cost = (c==='MAGE') ? 5 : 5; // Mana or Stam
     let res = (c==='MAGE') ? 'mana' : 'stam';
     
+    if(c==='ROGUE') {
+        // Toggle Stealth
+        if(game.p.hidden) {
+            game.p.hidden = false;
+            addParticle(game.p.x, game.p.y, "SICHTBAR", '#fff');
+        } else {
+            if(meta.stam < 5) { addParticle(game.p.x, game.p.y, "ZU ERSCHÖPFT!", '#555'); return; }
+            meta.stam -= 5;
+            game.p.hidden = true;
+            addParticle(game.p.x, game.p.y, "VERBORGEN", '#333');
+            // Reset Aggro
+            game.enemies.forEach(e => { if(e.state==='HUNT') e.state='PATROL'; });
+            sfx('step');
+        }
+        updateUI();
+        return; // Free Action or Cost? Prompt says "Toggle... Startkosten". Does it end turn? Usually Toggle is instant. Let's make it instant.
+    }
+
     if(meta[res] < cost) { addParticle(game.p.x, game.p.y, "ZU ERSCHÖPFT!", '#555'); return; }
     
     let acted = false;
@@ -882,55 +997,34 @@ function useSkill() {
     if(dx===0 && dy===0) dy=1; // Default dir
 
     if(c === 'WARRIOR') {
-        // Shield Bash
-        let tx = game.p.x + dx, ty = game.p.y + dy;
-        let t = game.enemies.find(e=>e.x===tx && e.y===ty);
-        if(t) {
-            meta[res] -= cost;
-            t.stun = 3; t.hp -= Math.max(1, (game.stats.dmg/2)|0);
-            // Pushback
-            let px = t.x + dx, py = t.y + dy;
-            if(!isBlocked(px, py)) { t.x=px; t.y=py; }
-            addParticle(tx, ty, "SCHILDSCHLAG!", '#fff'); sfx('hit');
-            acted = true;
-        } else {
-            addParticle(game.p.x, game.p.y, "LEER!", '#777');
-        }
-    } else if(c === 'ROGUE') {
-        // Shadow Jump
-        let tx = game.p.x + dx*3, ty = game.p.y + dy*3;
-        // Check if target valid (walls checked via isBlocked, but we want to jump OVER walls? Maybe just check target tile)
-        if(tx>0 && tx<GRID-1 && ty>0 && ty<GRID-1 && !game.map[ty][tx] && !isBlocked(tx,ty)) {
-             meta[res] -= cost;
-             addParticle(game.p.x, game.p.y, "POOF", '#333');
-             game.p.x = tx; game.p.y = ty;
-             addParticle(tx, ty, "HIER!", '#333'); sfx('step');
-             acted = true;
-        } else {
-             addParticle(game.p.x, game.p.y, "BLOCKIERT", '#777');
-        }
-    } else if(c === 'MAGE') {
-        // Fireball
+        // Whirlwind
         meta[res] -= cost;
-        sfx('glitch'); 
-        let hit = false;
-        for(let i=1; i<8; i++) {
-            let tx = game.p.x + dx*i, ty = game.p.y + dy*i;
-            if(game.map[ty][tx]===1) { addParticle(tx, ty, "PUFF", '#f00'); break; } // Wall hit
-            let t = game.enemies.find(e=>e.x===tx && e.y===ty);
-            if(t) {
-                t.hp -= (game.stats.dmg * 2); // High Dmg
-                addParticle(tx, ty, `FEUER! -${game.stats.dmg*2}`, '#f60');
-                if(t.hp<=0) {
-                    sfx('kill'); game.enemies=game.enemies.filter(e=>e!==t);
-                    meta.bits+=t.bits; addParticle(tx,ty,`+${t.bits}`,C.BITS);
-                } else t.state='HUNT';
-                hit = true;
-                break;
+        sfx('attack');
+        addParticle(game.p.x, game.p.y, "WIRBELWIND!", '#fff');
+        for(let iy=-1; iy<=1; iy++) {
+            for(let ix=-1; ix<=1; ix++) {
+                if(ix===0 && iy===0) continue;
+                let tx = game.p.x + ix, ty = game.p.y + iy;
+                let t = game.enemies.find(e=>e.x===tx && e.y===ty);
+                if(t) {
+                    t.hp -= game.stats.dmg;
+                    addParticle(tx, ty, `HIT ${game.stats.dmg}`, '#fff');
+                    // Knockback
+                    let kx = t.x + ix, ky = t.y + iy;
+                    if(!isBlocked(kx, ky) && !game.walls[`${kx},${ky}`]) { t.x=kx; t.y=ky; }
+                    
+                    if(t.hp<=0) {
+                        game.enemies=game.enemies.filter(e=>e!==t);
+                        meta.bits+=t.bits; addParticle(tx,ty,`+${t.bits}`,C.BITS);
+                    } else t.state='HUNT';
+                }
             }
-            addParticle(tx, ty, "*", '#f60', 2); // Trail
         }
         acted = true;
+    } else if(c === 'MAGE') {
+        game.aiming = !game.aiming;
+        addParticle(game.p.x, game.p.y, game.aiming?"ZIELEN...":"ABBRUCH", '#f0f');
+        updateUI(); return;
     }
 
     if(acted) {
@@ -968,6 +1062,7 @@ function inputGame(e){
     else if(e.key.match(/d|ArrowRight/)) dx=1;
     else if(e.key===' '){game.p.actNoise=0;acted=true;} 
     else if(e.key.toLowerCase()==='b') { useSkill(); return; }
+    else if(e.key.toLowerCase()==='f') { useConsumable(); return; }
     else return;
     if(dx!==0||dy!==0) acted = movePlayer(dx,dy);
     if(acted) endTurn();
@@ -975,14 +1070,16 @@ function inputGame(e){
 
 function act(c){
   if(!actx){actx=new(window.AudioContext||window.webkitAudioContext)();actx.resume();}
+  if(game.aiming && c!=='SKILL') { game.aiming=false; updateUI(); }
   if(c==='U')movePlayer(0,-1)&&endTurn();
   if(c==='D')movePlayer(0,1)&&endTurn();
   if(c==='L')movePlayer(-1,0)&&endTurn();
   if(c==='R')movePlayer(1,0)&&endTurn();
   if(c==='WAIT'){game.p.actNoise=0;endTurn();}
   if(c==='SKILL')useSkill();
+  if(c==='ITEM')useConsumable();
   if(c==='INV')inv_toggle();
-  if(c==='HELP')alert('WASD/Pfeile: Move\nSPACE: Wait\nB: Skill\nI: Inv');
+  if(c==='HELP')alert('WASD/Pfeile: Move\nSPACE: Wait\nB: Skill\nF: Item\nI: Inv');
   if(c==='ATK'){let d=game.p.dir;movePlayer(d.x,d.y)&&endTurn();}
 }
 function endTurn(){game.p.energy-=100;processTurns();return true;}
@@ -992,6 +1089,10 @@ CVS.onclick = e => {
     let rect = CVS.getBoundingClientRect();
     let tx = ((e.clientX - rect.left) / (rect.width/GRID)) | 0;
     let ty = ((e.clientY - rect.top) / (rect.height/GRID)) | 0;
+    if(game.aiming && meta.class==='MAGE') {
+        castFireball(tx, ty);
+        return;
+    }
     let t = game.enemies.find(en=>en.x===tx && en.y===ty);
     if(t) {
         let dx=tx-game.p.x, dy=ty-game.p.y;
@@ -999,6 +1100,42 @@ CVS.onclick = e => {
         else stepTowards(tx,ty);
     } else stepTowards(tx,ty);
 };
+function castFireball(tx, ty){
+    if(meta.mana<5){addParticle(game.p.x,game.p.y,"KEIN MANA",'#0af');game.aiming=false;updateUI();return;}
+    if(!hasLOS(game.p.x, game.p.y, tx, ty)){addParticle(tx,ty,"BLOCKIERT",'#f00');return;}
+    meta.mana-=5; sfx('glitch'); game.aiming=false; updateUI();
+    let t = game.enemies.find(e=>e.x===tx && e.y===ty);
+    if(t){
+       t.hp-=(game.stats.dmg*2); addParticle(tx,ty,`BOOM! -${game.stats.dmg*2}`,'#f60');
+       if(t.hp<=0){game.enemies=game.enemies.filter(e=>e!==t);meta.bits+=t.bits;addParticle(tx,ty,`+${t.bits}`,C.BITS);}
+       else t.state='HUNT';
+    } else {
+       addParticle(tx,ty,"BOOM!",'#f60');
+    }
+    // Splash
+    for(let sy=-1; sy<=1; sy++) for(let sx=-1; sx<=1; sx++) {
+        if(sx===0&&sy===0) continue;
+        let st = game.enemies.find(e=>e.x===tx+sx && e.y===ty+sy);
+        if(st) {
+            st.hp-=Math.floor(game.stats.dmg); st.state='HUNT';
+            addParticle(st.x,st.y,`SPLASH -${Math.floor(game.stats.dmg)}`,'#f60');
+            if(st.hp<=0) { game.enemies=game.enemies.filter(e=>e!==st); meta.bits+=st.bits; addParticle(st.x,st.y,`+${st.bits}`,C.BITS); }
+        }
+    }
+    game.p.energy-=100; processTurns();
+}
+function hasLOS(x0,y0,x1,y1){
+  let dx=Math.abs(x1-x0), dy=Math.abs(y1-y0);
+  let sx=(x0<x1)?1:-1, sy=(y0<y1)?1:-1;
+  let err=dx-dy;
+  while(true){
+    if(x0===x1 && y0===y1) return true;
+    if(game.map[y0][x0]===1) return false;
+    let e2=2*err;
+    if(e2>-dy){err-=dy;x0+=sx;}
+    if(e2<dx){err+=dx;y0+=sy;}
+  }
+}
 function stepTowards(tx,ty){
     let dx=Math.sign(tx-game.p.x), dy=Math.sign(ty-game.p.y);
     if(dx!==0 && dy!==0) { if(Math.abs(tx-game.p.x)>Math.abs(ty-game.p.y)) dy=0; else dx=0; }
@@ -1010,11 +1147,12 @@ document.onmousemove = e => {
   if(e.target.id==='cvs') {
       let r = CVS.getBoundingClientRect(), s = r.width/GRID;
       let x = (e.clientX - r.left)/s|0, y = (e.clientY - r.top)/s|0;
+      game.mouse = {x,y};
       let t = game.enemies.find(e=>e.x===x && e.y===y);
       let i = game.items.find(e=>e.x===x && e.y===y);
       let w = game.walls[`${x},${y}`];
       if(t) txt = `${t.name}\nHP:${t.hp}/${t.max} ATK:${t.dmg}`;
-      else if(i) txt = i.val ? `${i.val.name}\n${Object.keys(i.val.mods).join(',')}` : ['HP+','STILLE','GOLD','ROLLE'][i.type];
+      else if(i) txt = i.val ? `${i.val.name}\n${Object.keys(i.val.mods).join(',')}` : ['HP+','MANA+','GOLD','ROLLE'][i.type];
       else if(w) txt = `Mauer (${(w|0)})`;
       else if(x===game.key.x && y===game.key.y) txt='Schlüssel';
       else if(x===game.exit.x && y===game.exit.y) txt=`Ausgang ${game.p.hasKey?'(Offen)':'(Zu)'}`;
