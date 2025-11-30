@@ -1055,6 +1055,22 @@ function calcStats(){
     Object.values(game.equipment).forEach(it=>{
         if(it) Object.keys(it.mods).forEach(k=>game.stats[k]=(game.stats[k]||0)+it.mods[k]);
     });
+
+    // Weapon Proficiency Bonus
+    let w = game.equipment.WEAPON;
+    if(w) {
+        let n = w.name;
+        if(meta.class==='WARRIOR' && (n.includes('Schwert') || n.includes('Axt') || n.includes('Hammer'))) {
+            game.stats.def = (game.stats.def||0) + 1;
+            game.stats.dmg = (game.stats.dmg||0) + 1;
+        } else if(meta.class==='ROGUE' && n.includes('Dolch')) {
+            game.stats.critChance = (game.stats.critChance||0) + 0.05;
+            game.stats.speed = (game.stats.speed||0) + 2;
+        } else if(meta.class==='MAGE' && n.includes('Stab')) {
+            game.stats.manaRegen = (game.stats.manaRegen||0) + 0.5;
+        }
+    }
+
     // Safety & Clamps
     game.stats.critChance=Math.min(1.0,game.stats.critChance);
     game.stats.dodgeChance=Math.min(0.75,game.stats.dodgeChance);
@@ -1275,10 +1291,12 @@ function renderInv(){
 function renderMods(it){
     let bonus = '';
     // Check Class Bonus
-    if((meta.class==='WARRIOR' && it.name.includes('Schwert')) || 
-       (meta.class==='ROGUE' && it.name.includes('Dolch')) ||
-       (meta.class==='MAGE' && it.name.includes('Stab'))) {
-       bonus = '<br><span style="color:#0f0">KLASSEN-BONUS!</span>';
+    if(meta.class==='WARRIOR' && (it.name.includes('Schwert') || it.name.includes('Axt') || it.name.includes('Hammer'))) {
+       bonus = '<br><span style="color:#0f0">KLASSEN-BONUS! (+1 DEF, +1 DMG)</span>';
+    } else if(meta.class==='ROGUE' && it.name.includes('Dolch')) {
+       bonus = '<br><span style="color:#0f0">KLASSEN-BONUS! (+5% CRIT, +2 SPD)</span>';
+    } else if(meta.class==='MAGE' && it.name.includes('Stab')) {
+       bonus = '<br><span style="color:#0f0">KLASSEN-BONUS! (+0.5 MANA REG)</span>';
     }
     let modsHtml = Object.entries(it.mods).map(([k,v])=>{
         let col = (v >= 0) ? '#0f0' : '#f00';
