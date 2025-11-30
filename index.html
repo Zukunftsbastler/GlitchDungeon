@@ -153,6 +153,19 @@
         .equip-slots { display:flex; gap:15px; justify-content:center; margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:15px; }
         .equip-slot-label { font-size:10px; color:#666; text-transform:uppercase; margin-bottom:2px;}
 
+        /* Inventory Mode Styles */
+        .btn-mode {
+            background: #111; border: 1px solid #555; color: #ccc;
+            padding: 10px; margin-bottom: 10px; text-align: center; cursor: pointer;
+            font-family: var(--font-display); font-size: 1.2rem;
+            transition: all 0.2s; user-select: none;
+        }
+        .btn-mode:hover { background: #222; border-color: #fff; }
+        .mode-trash .inv-slot { border-color: #f00 !important; background: #211; }
+        .mode-trash .inv-slot:hover { background: #411; cursor: not-allowed; }
+        .mode-sell .inv-slot { border-color: #ffd700 !important; background: #221; }
+        .mode-sell .inv-slot:hover { background: #442; cursor: alias; }
+
         /* HUD */
         #hud {
             width: 640px; background: #050505; border-top: 1px solid #333;
@@ -178,7 +191,8 @@
 <div id="inv-screen">
     <div style="text-align:center;font-family:var(--font-display);font-size:1.5rem;color:var(--accent-color)">AUSRÜSTUNG</div>
     <div class="equip-slots" id="equip-display"></div>
-    <div style="text-align:center;font-size:0.9rem;opacity:0.7">RUCKSACK (Klick zum Ausrüsten)</div>
+    <div id="inv-mode-btn" onclick="cycleInvMode()" class="btn-mode">MODUS: AUSRÜSTEN</div>
+    <div style="text-align:center;font-size:0.9rem;opacity:0.7">RUCKSACK</div>
     <div class="inv-grid" id="inv-display"></div>
 </div>
 
@@ -350,7 +364,7 @@ if(localStorage.getItem('GD4_Dark_Save')) {
     meta.bits = s.bits; meta.maxLvl = s.maxLvl; meta.shopSlots=s.shopSlots; meta.shopLuck=s.shopLuck;
 }
 
-let game = { mode:'GAME', map:[], walls:{}, level:1, biome:0, p:{x:1,y:1,en:0,dir:{x:0,y:1}, hidden:false}, enemies:[], items:[], particles:[], shopItems:[], torches:[], inventory:[], equipment:{WEAPON:null,ARMOR:null,RELIC:null}, stats:{}, key:{x:0,y:0}, exit:{x:0,y:0}, timers:{glitch:25,stun:0,shake:0,poison:0,burn:0}, lockMode:false, rerollCost:10, lockInput:false, aiming:false, mouse:{x:0,y:0} };
+let game = { invMode:0, mode:'GAME', map:[], walls:{}, level:1, biome:0, p:{x:1,y:1,en:0,dir:{x:0,y:1}, hidden:false}, enemies:[], items:[], particles:[], shopItems:[], torches:[], inventory:[], equipment:{WEAPON:null,ARMOR:null,RELIC:null}, stats:{}, key:{x:0,y:0}, exit:{x:0,y:0}, timers:{glitch:25,stun:0,shake:0,poison:0,burn:0}, lockMode:false, rerollCost:10, lockInput:false, aiming:false, mouse:{x:0,y:0} };
 
 // --- LOGIC ---
 // Init Class Buttons
@@ -942,6 +956,10 @@ function genItem(lvl){
     
     // Stats: Base * Mat * Rarity
     let val = type.v * mat.m * rar.mul;
+    
+    // Value Calc
+    item.val = ((type.v * 10) * mat.m * rar.mul * 0.5) | 0;
+
     item.mods[type.stat] = val;
     if(!['maxHp','dmg','torchRadius'].includes(type.stat)) item.mods[type.stat]=parseFloat(val.toFixed(2));
     else item.mods[type.stat] = Math.round(val);
@@ -1126,7 +1144,32 @@ function useSkill() {
     }
 }
 
-function inv_toggle(){let el=document.getElementById('inv-screen');if(el.style.display==='block')el.style.display='none';else{renderInv();el.style.display='block';}}
+function inv_toggle(){
+    let el=document.getElementById('inv-screen');
+    if(el.style.display==='block'){
+        el.style.display='none';
+        game.invMode=0;
+    } else {
+        game.invMode=0; updateInvModeUI(); renderInv(); el.style.display='block';
+    }
+}
+function cycleInvMode(){
+  if(game.mode==='SHOP') game.invMode=(game.invMode===0)?2:0;
+  else game.invMode=(game.invMode===0)?1:0;
+  updateInvModeUI();
+}
+function updateInvModeUI(){
+    let btn=document.getElementById('inv-mode-btn');
+    let grid=document.getElementById('inv-display');
+    grid.className='inv-grid';
+    if(game.invMode===0){
+        btn.innerText="MODUS: AUSRÜSTEN";btn.style.color="#ccc";btn.style.borderColor="#555";
+    }else if(game.invMode===1){
+        btn.innerText="MODUS: MÜLL (LÖSCHEN!)";btn.style.color="#f00";btn.style.borderColor="#f00";grid.classList.add('mode-trash');
+    }else if(game.invMode===2){
+        btn.innerText="MODUS: VERKAUFEN";btn.style.color="#ffd700";btn.style.borderColor="#ffd700";grid.classList.add('mode-sell');
+    }
+}
 function renderInv(){
   let h='';
   ['WEAPON','ARMOR','RELIC'].forEach(s=>{
@@ -1137,7 +1180,7 @@ function renderInv(){
   document.getElementById('equip-display').innerHTML=h;h='';
   game.inventory.forEach((it,i)=>{
       let st=`border-color:${it.rarityCol||'#333'};box-shadow:0 0 5px ${it.rarityCol||'#000'};`;
-      h+=`<div class="inv-slot" style="${st}" onclick="inv_equip(${i})"><div style="color:${it.col}">${it.name}</div>${renderMods(it)}</div>`;
+      h+=`<div class="inv-slot" style="${st}" onclick="inv_action(${i})"><div style="color:${it.col}">${it.name}</div>${renderMods(it)}</div>`;
   });
   document.getElementById('inv-display').innerHTML=h;
 }
@@ -1148,11 +1191,21 @@ function renderMods(it){
        (meta.class==='ROGUE' && it.name.includes('Dolch')) ||
        (meta.class==='MAGE' && it.name.includes('Stab'))) {
        bonus = '<br><span style="color:#0f0">KLASSEN-BONUS!</span>';
-       // Note: Logic for applying bonus stats needs to be in calcStats, doing visual only here for now or updating calcStats
     }
-    return `<div class="inv-tooltip">${Object.entries(it.mods).map(([k,v])=>`${k}:${v}`).join('<br>')}${bonus}</div>`;
+    return `<div class="inv-tooltip">WERT: ${it.val||0}<br>${Object.entries(it.mods).map(([k,v])=>`${k}:${v}`).join('<br>')}${bonus}</div>`;
 }
-function inv_equip(i){let it=game.inventory[i];if(!it)return;let old=game.equipment[it.slot];if(old)game.inventory[i]=old;else game.inventory.splice(i,1);game.equipment[it.slot]=it;sfx('shop');calcStats();renderInv();}
+function inv_action(i){
+    let it=game.inventory[i]; if(!it)return;
+    if(game.invMode===0) { // Equip
+        let old=game.equipment[it.slot];
+        if(old)game.inventory[i]=old;else game.inventory.splice(i,1);
+        game.equipment[it.slot]=it;sfx('shop');calcStats();renderInv();
+    } else if(game.invMode===1) { // Trash
+        game.inventory.splice(i,1);sfx('hit');addParticle(game.p.x,game.p.y,"MÜLL",'#888');renderInv();
+    } else if(game.invMode===2) { // Sell
+        game.inventory.splice(i,1);meta.bits+=(it.val||0);sfx('shop');addParticle(game.p.x,game.p.y,`+${it.val||0} GOLD`,'#ffd700');updateUI();renderInv();
+    }
+}
 function inv_unequip(s){let it=game.equipment[s];if(!it)return;if(game.inventory.length<10){game.equipment[s]=null;game.inventory.push(it);sfx('shop');calcStats();renderInv();}else sfx('hit');}
 function sfx(id){if(!actx)return;const t=actx.currentTime,o=actx.createOscillator(),g=actx.createGain();o.connect(g);g.connect(actx.destination);if(id==='step'){o.type='triangle';o.frequency.setValueAtTime(50,t);o.frequency.exponentialRampToValueAtTime(10,t+0.1);g.gain.setValueAtTime(0.1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.1);o.start(t);o.stop(t+0.1);}else if(id==='attack'){o.type='sawtooth';o.frequency.setValueAtTime(100,t);o.frequency.linearRampToValueAtTime(50,t+0.1);g.gain.setValueAtTime(0.1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.1);o.start(t);o.stop(t+0.1);}else if(id==='hit'){o.type='sawtooth';o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(10,t+0.3);g.gain.setValueAtTime(0.2,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.3);o.start(t);o.stop(t+0.3);}else if(id==='kill'){o.type='sine';o.frequency.setValueAtTime(440,t);o.frequency.exponentialRampToValueAtTime(880,t+0.2);g.gain.setValueAtTime(0.1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.4);o.start(t);o.stop(t+0.4);}else if(id==='shop'){o.type='triangle';o.frequency.setValueAtTime(600,t);g.gain.setValueAtTime(0.05,t);g.gain.exponentialRampToValueAtTime(0.001,t+1.0);o.start(t);o.stop(t+1.0);}else if(id==='glitch'){o.type='sawtooth';o.frequency.setValueAtTime(Math.random()*200+50,t);o.frequency.linearRampToValueAtTime(Math.random()*200+50,t+0.2);g.gain.setValueAtTime(0.1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.2);o.start(t);o.stop(t+0.2);}}
 window.addEventListener('keydown',e=>{if(!actx&&document.getElementById('game-wrapper').style.display!=='none'){actx=new(window.AudioContext||window.webkitAudioContext)();actx.resume();}if(game.timers.shake>0)return;if(game.mode==='GAME')inputGame(e);else if(game.mode==='SHOP')inputShop(e);});
