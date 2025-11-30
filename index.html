@@ -281,7 +281,7 @@
 const BIOMES = [
   { n: "KATAKOMBEN", hint: "Massive Wände versperren den Weg. Eine Spitzhacke ist Pflicht!", c: ['#444','#222','#000','#888'], f: (x,y)=>Math.random()<0.2 ? 1:0, hp: 10, sp: 0, mobs:['SKEL','RAT','SPIDER'] },
   { n: "EISHÖHLE", hint: "Rutschiger Boden. Achte auf deinen Halt.", c: ['#8ff','#004','#002','#aff'], f: (x,y)=>Math.sin(x/2)*Math.cos(y/2)>0.2 ? 1:0, hp: 12, sp: 2, mobs:['GOLEM','WRAITH','ELEMENTAL'] },
-  { n: "SUMPF", hint: "Zäher Morast zehrt an deiner Ausdauer.", c: ['#462','#230','#120','#682'], f: (x,y)=>(x^y)%5===0 ? 0:1, hp: 10, sp: 3, mobs:['SLIME','SNAKE','BAT'] },
+  { n: "SUMPF", hint: "Zäher Morast zehrt an deiner Ausdauer.", c: ['#462','#230','#120','#682'], f: (x,y)=>Math.sin(x/3)*Math.cos(y/3)>0.6?1:(Math.random()>0.7?3:0), hp: 10, sp: 3, mobs:['SLIME','SNAKE','BAT'] },
   { n: "VULKAN", hint: "Extreme Hitze! Meide die Lava.", c: ['#611','#300','#200','#f40'], f: (x,y)=>Math.abs(Math.sin(x*y))>0.6 ? 1:4, hp: 15, sp: 4, mobs:['GOLEM','ELEMENTAL','EYE'] },
   { n: "ASTRAL", hint: "Die Realität ist instabil. Pass auf Glitches auf.", c: ['#f0f','#000','#0f0','#f0f'], f: (x,y)=>Math.random()<0.1?5:1, hp: 8, sp: 5, mobs:['MIMIC','EYE','GHOST'] },
   { n: "NEKRO", hint: "Der Tod ist hier zuhause.", c: ['#2f2','#111','#020','#0f0'], f: (x,y)=>((x*y)%7===0)?6:1, hp: 12, sp: 6, mobs:['SKEL','WRAITH','GHOST'] },
@@ -481,7 +481,7 @@ function startLevel(lvl) {
   setTimeout(() => el.style.opacity = 0, 4000);
   
   // Colors
-  C.WALL=B.c[0]; C.FLOOR=B.c[1]; C.PL=B.c[3];
+  C.WALL=B.c[0]; C.FLOOR=B.c[1]; C.MUD=B.c[2]; C.PL=B.c[3];
 
   game.p.hasKey=false; game.p.hidden=false; game.timers={glitch:15+(game.stats.glitchMod||0),stun:0,shake:0,poison:0,burn:0}; game.glitchCount=0;
   game.enemies=[]; game.items=[]; game.particles=[]; game.torches=[]; game.walls={};
@@ -607,6 +607,13 @@ function movePlayer(dx, dy) {
       meta.bits+=target.bits; addParticle(nx,ny,`+${target.bits}`,C.BITS);
     }
     return true;
+  }
+  
+  // Mud Interaction
+  if(game.map[ny][nx]===3) {
+      if(meta.stam < 1) { addParticle(game.p.x, game.p.y, "STECKT FEST!", '#8b4513'); return false; }
+      meta.stam -= 1;
+      addParticle(nx, ny, "SCHMATZ", '#5c4033');
   }
   
   game.p.x=nx; game.p.y=ny; sfx('step');
@@ -815,6 +822,7 @@ function drawGame() {
   for(let y=0;y<GRID;y++) for(let x=0;x<GRID;x++) {
     let px=x*TILE, py=y*TILE, t=game.map[y][x];
     if(t===1) drawSprite(CTX,px,py,x+y*GRID,'WALL',C.WALL);
+    else if(t===3) drawSprite(CTX,px,py,x*y+x,'FLOOR',C.MUD);
     else drawSprite(CTX,px,py,x*y+x,'FLOOR',C.FLOOR);
   }
   let kCol=game.p.hasKey?'#333':'#f0f';
