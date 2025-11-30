@@ -740,8 +740,13 @@ function drawGame() {
     if(e.fx==='POISON'&&Math.random()<0.05)addParticle(e.x,e.y,'o','#0f0',0.3);
     
     drawSprite(CTX,e.x*TILE,e.y*TILE,(e.x+e.y+idx)*10,e.type,e.col||`hsl(${e.hue},60%,50%)`);
+    
+    // HP Bar
     CTX.fillStyle='red';CTX.fillRect(e.x*TILE,e.y*TILE-8,32,2);
     CTX.fillStyle='#0f0';CTX.fillRect(e.x*TILE,e.y*TILE-8,32*(e.hp/e.max),2);
+    
+    // Status Icons
+    if(e.stun>0) { CTX.fillStyle='#fff'; CTX.fillText('💫', e.x*TILE+8, e.y*TILE-10); }
   });
   
   // Player Drawing with Stealth
@@ -755,6 +760,10 @@ function drawGame() {
       // Stealth Particle Effect
       if(Math.random()<0.3) addParticle(game.p.x, game.p.y, "...", "#888");
   }
+  
+  // Player Status Icons
+  if(game.timers.poison>0) { CTX.fillStyle='#0f0'; CTX.fillText('☠️', game.p.x*TILE+20, game.p.y*TILE); }
+  if(game.timers.burn>0) { CTX.fillStyle='#f60'; CTX.fillText('🔥', game.p.x*TILE-5, game.p.y*TILE); }
 
   if(game.aiming && meta.class==='MAGE') {
       let v = hasLOS(game.p.x, game.p.y, game.mouse.x, game.mouse.y);
@@ -955,7 +964,13 @@ function isBlocked(x,y){if(game.map[y][x]===1)return true;if(game.enemies.some(e
 function checkPickups(){let idx=game.items.findIndex(i=>i.x===game.p.x&&i.y===game.p.y);if(idx>=0){sfx('shop');let item=game.items[idx];game.items.splice(idx,1);if(item.type==='EQUIP'){if(game.inventory.length<10){game.inventory.push(item.val);addParticle(game.p.x,game.p.y,item.val.name,item.val.rarityCol||item.val.col);}else{addParticle(game.p.x,game.p.y,"VOLL!",'#f00');game.items.push(item);return;}}else{if(item.type===0){if(game.timers.poison>0)addParticle(game.p.x,game.p.y,"GIFT BLOCKT!",'#0f0');else{meta.hp=Math.min(meta.hp+5,game.stats.maxHp);addParticle(game.p.x,game.p.y,"HEILUNG",'#0f0');}}if(item.type===1){meta.mana=Math.min(meta.mana+10,game.stats.maxMana);addParticle(game.p.x,game.p.y,"MANA",'#0af');}if(item.type===2){let b=Math.floor((10+game.level*5)*game.stats.lootMul);meta.bits+=b;addParticle(game.p.x,game.p.y,`+${b}`,C.BITS);}if(item.type===3&&meta.scrolls<5){meta.scrolls++;addParticle(game.p.x,game.p.y,"RITUAL",'#f60');}}}}
 function updateUI(){
     document.getElementById('ui-lvl').innerText=game.level;
-    document.getElementById('ui-hp').innerText=Math.round(meta.hp)+"/"+game.stats.maxHp;
+    
+    // Status UI
+    let hpTxt = Math.round(meta.hp)+"/"+game.stats.maxHp;
+    if(game.timers.poison>0) hpTxt += " [GIFT: "+game.timers.poison+"]";
+    if(game.timers.burn>0) hpTxt += " [FEUER: "+game.timers.burn+"]";
+    document.getElementById('ui-hp').innerHTML = hpTxt; // InnerHTML to allow styling if needed, but text is fine
+    
     document.getElementById('ui-glitch').innerText=game.timers.glitch;
     document.getElementById('ui-bits').innerText=meta.bits;
     document.getElementById('ui-scrolls').innerText=meta.scrolls||0;
