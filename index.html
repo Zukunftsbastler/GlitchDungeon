@@ -334,7 +334,19 @@ const I_MATS = [
     {n:"Gold",m:1.2,c:'#ffd700',b:{lootMul:0.2}},
     {n:"Vampirisch",m:2.0,c:'#800',b:{lifesteal:0.1}}
 ];
-const I_TYPES = [{n:"Dolch",s:"WEAPON",stat:"dmg",v:2},{n:"Schwert",s:"WEAPON",stat:"dmg",v:4},{n:"Axt",s:"WEAPON",stat:"dmg",v:6},{n:"Stab",s:"WEAPON",stat:"dmg",v:3},{n:"Robe",s:"ARMOR",stat:"maxHp",v:5},{n:"Leder",s:"ARMOR",stat:"maxHp",v:10},{n:"Platte",s:"ARMOR",stat:"maxHp",v:20},{n:"Ring",s:"RELIC",stat:"luck",v:5},{n:"Amulett",s:"RELIC",stat:"crit",v:0.02}];
+// Updated I_TYPES with mods object and trade-offs
+const I_TYPES = [
+    {n:"Dolch",s:"WEAPON",baseCost:20,mods:{dmg:2,speed:2}},
+    {n:"Schwert",s:"WEAPON",baseCost:40,mods:{dmg:4}},
+    {n:"Axt",s:"WEAPON",baseCost:60,mods:{dmg:6,speed:-2}},
+    {n:"Hammer",s:"WEAPON",baseCost:70,mods:{dmg:8,speed:-4}},
+    {n:"Stab",s:"WEAPON",baseCost:30,mods:{dmg:2,maxMana:10}},
+    {n:"Robe",s:"ARMOR",baseCost:40,mods:{def:0,maxMana:10,manaRegen:0.2}},
+    {n:"Leder",s:"ARMOR",baseCost:60,mods:{def:1,dodgeChance:0.05}},
+    {n:"Platte",s:"ARMOR",baseCost:100,mods:{def:3,speed:-4,noise:5}},
+    {n:"Ring",s:"RELIC",baseCost:50,mods:{shopLuck:5}},
+    {n:"Amulett",s:"RELIC",baseCost:80,mods:{critChance:0.02}}
+];
 const I_SUFFIX = [{n:"des Blutes",stat:"lifesteal",v:0.05},{n:"des Windes",stat:"dodgeChance",v:0.05},{n:"des Zorns",stat:"critChance",v:0.05},{n:"der Gier",stat:"lootMul",v:0.2},{n:"des Lichts",stat:"torchRadius",v:30},{n:"der Zeit",stat:"glitchMod",v:5}];
 const R_NAMES = ["Rostig","Alt","Geschmiedet","Gehärtet","Edel","Meisterhaft","Königlich","Verflucht","Dämonisch","Göttlich","EWIG"];
 const RARITIES = R_NAMES.map((n,i) => ({name:n, mul:1+i*0.8, chance:Math.max(0.1,50/Math.pow(2,i)), col:i===R_NAMES.length-1?'RAINBOW':`hsl(${40},${20+(i/10)*80}%,${50+i*2}%)`}));
@@ -356,7 +368,7 @@ const ITEM_POOL = [
 ];
 
 // --- STATE ---
-let meta = { bits:0, hp:10, maxHp:10, mana:10, maxMana:10, stam:10, maxStam:10, dmg:1, mine:1, noise:5, speed:10, class:'WARRIOR', critChance:0.05, dodgeChance:0.05, lootMul:1.0, glitchMod:0, scrolls:0, torchCount:2, torchRadius:150, maxLvl:1, shopSlots:3, shopLuck:0, lockedItems:[] };
+let meta = { bits:0, hp:10, maxHp:10, mana:10, maxMana:10, stam:10, maxStam:10, dmg:1, mine:1, noise:5, speed:10, def:0, manaRegen:0, class:'WARRIOR', critChance:0.05, dodgeChance:0.05, lootMul:1.0, glitchMod:0, scrolls:0, torchCount:2, torchRadius:150, maxLvl:1, shopSlots:3, shopLuck:0, lockedItems:[] };
 // Note: We don't load everything from save for class/stats reset on run start, but we keep meta progression (bits, maxLvl, etc if we had any rogue-lite elements, but current code resets hp on reincarnate).
 // Actually, let's keep it simple: meta is "run state".
 if(localStorage.getItem('GD4_Dark_Save')) {
@@ -459,6 +471,7 @@ function spawnActors() {
   
   // Player Init
   game.p.energy = 100; game.p.actNoise = 0; // Starts quiet
+  meta.mana = meta.maxMana; // Reset Mana on level start
   game.lockInput = false;
 
   // Enemies
@@ -596,6 +609,10 @@ function processTurns() {
             } else {
                meta.stam = Math.min(meta.maxStam, meta.stam + 1); // Stamina regen
             }
+            // Mana Regen
+            if(game.stats.manaRegen > 0 && meta.mana < meta.maxMana) {
+                meta.mana = Math.min(meta.maxMana, meta.mana + game.stats.manaRegen);
+            }
 
             turnLogic(); // Update Game World / UI once per player turn roughly
             return;
@@ -672,7 +689,8 @@ function enemyAct(e) {
     if(nx===game.p.x && ny===game.p.y) {
         if(Math.random()<game.stats.dodgeChance) addParticle(game.p.x,game.p.y,"AUSGEWICHEN",'#aaa');
         else { 
-            meta.hp-=e.dmg; sfx('hit'); addParticle(game.p.x,game.p.y,`-${e.dmg} HP`,'#f00'); game.timers.shake=5; 
+            let dmg = Math.max(1, e.dmg - (game.stats.def||0));
+            meta.hp-=dmg; sfx('hit'); addParticle(game.p.x,game.p.y,`-${dmg} HP`,'#f00'); game.timers.shake=5; 
             if(e.fx==='POISON'){game.timers.poison=20;addParticle(game.p.x,game.p.y,"VERGIFTET!",'#0f0');}
             if(e.fx==='BURN'&&Math.random()<0.3){game.timers.burn=10;addParticle(game.p.x,game.p.y,"BRENNT!",'#f60');}
             if(e.fx==='FREEZE'){meta.stam=Math.max(0,meta.stam-5);addParticle(game.p.x,game.p.y,"EISIG!",'#0ff');}
@@ -936,7 +954,6 @@ function addParticle(x,y,txt,col,spd=1){game.particles.push({x:x*TILE+16,y:y*TIL
 function genItem(lvl){
     let mat=I_MATS[Math.min(I_MATS.length-1,Math.floor(Math.random()*(lvl/2+1)))];
     
-    // Rarity Roll: Linear progression based on Level
     let rMax = 2 + lvl * 0.4;
     let rIdx = Math.floor(Math.random() * rMax + (game.stats.shopLuck||0)/20);
     rIdx = Math.min(RARITIES.length-1, Math.max(0, rIdx));
@@ -947,23 +964,24 @@ function genItem(lvl){
         id:Math.random(),
         name:`${rar.name} ${mat.n} ${type.n}`,
         slot:type.s,
-        col:mat.c, // Material Color (Pixel Art)
-        rarityCol: rar.col, // Rarity Color (Border)
+        col:mat.c,
+        rarityCol: rar.col,
         mods:{}
     };
     
-    if(mat.b) Object.assign(item.mods, mat.b);
-    
-    // Stats: Base * Mat * Rarity
-    let val = type.v * mat.m * rar.mul;
+    // Apply Type Mods (Scaled)
+    Object.keys(type.mods).forEach(k => {
+        let v = type.mods[k] * mat.m * rar.mul;
+        if(['critChance','dodgeChance','lootMul','manaRegen'].includes(k)) item.mods[k]=parseFloat(v.toFixed(2));
+        else item.mods[k] = Math.round(v);
+    });
+
+    if(mat.b) Object.assign(item.mods, mat.b); // Material Bonus (Fixed)
     
     // Value Calc
-    item.val = ((type.v * 10) * mat.m * rar.mul * 0.5) | 0;
+    item.val = (type.baseCost * mat.m * rar.mul * 0.5) | 0;
 
-    item.mods[type.stat] = val;
-    if(!['maxHp','dmg','torchRadius'].includes(type.stat)) item.mods[type.stat]=parseFloat(val.toFixed(2));
-    else item.mods[type.stat] = Math.round(val);
-
+    // Suffix (Extra Stat)
     if(Math.random()<0.3+(lvl*0.05)){
         let s=I_SUFFIX[rnd(0,I_SUFFIX.length-1)];
         item.name+=" "+s.n;
@@ -972,7 +990,17 @@ function genItem(lvl){
     }
     return item;
 }
-function calcStats(){game.stats={...meta};Object.values(game.equipment).forEach(it=>{if(it)Object.keys(it.mods).forEach(k=>game.stats[k]=(game.stats[k]||0)+it.mods[k]);});game.stats.critChance=Math.min(1.0,game.stats.critChance);game.stats.dodgeChance=Math.min(0.75,game.stats.dodgeChance);}
+function calcStats(){
+    game.stats={...meta};
+    Object.values(game.equipment).forEach(it=>{
+        if(it) Object.keys(it.mods).forEach(k=>game.stats[k]=(game.stats[k]||0)+it.mods[k]);
+    });
+    // Safety & Clamps
+    game.stats.critChance=Math.min(1.0,game.stats.critChance);
+    game.stats.dodgeChance=Math.min(0.75,game.stats.dodgeChance);
+    game.stats.speed = Math.max(2, game.stats.speed);
+    game.stats.noise = Math.max(0, game.stats.noise);
+}
 function save(){localStorage.setItem('GD4_Dark_Save',JSON.stringify(meta));}
 function delSave(){if(confirm('Alles löschen?')){localStorage.removeItem('GD4_Dark_Save');location.reload();}}
 function triggerGameOver(){game.mode='SHOP';game.rerollCost=10;generateShop();document.getElementById('btn-reincarnate').style.display='block';save();}
@@ -1192,7 +1220,12 @@ function renderMods(it){
        (meta.class==='MAGE' && it.name.includes('Stab'))) {
        bonus = '<br><span style="color:#0f0">KLASSEN-BONUS!</span>';
     }
-    return `<div class="inv-tooltip">WERT: ${it.val||0}<br>${Object.entries(it.mods).map(([k,v])=>`${k}:${v}`).join('<br>')}${bonus}</div>`;
+    let modsHtml = Object.entries(it.mods).map(([k,v])=>{
+        let col = (v >= 0) ? '#0f0' : '#f00';
+        if(k==='noise' || k==='stamCost') col = (v <= 0) ? '#0f0' : '#f00'; // Inverse for noise/cost
+        return `<span style="color:${col}">${k}: ${v}</span>`;
+    }).join('<br>');
+    return `<div class="inv-tooltip">WERT: ${it.val||0}<br>${modsHtml}${bonus}</div>`;
 }
 function inv_action(i){
     let it=game.inventory[i]; if(!it)return;
@@ -1209,7 +1242,7 @@ function inv_action(i){
 function inv_unequip(s){let it=game.equipment[s];if(!it)return;if(game.inventory.length<10){game.equipment[s]=null;game.inventory.push(it);sfx('shop');calcStats();renderInv();}else sfx('hit');}
 function sfx(id){if(!actx)return;const t=actx.currentTime,o=actx.createOscillator(),g=actx.createGain();o.connect(g);g.connect(actx.destination);if(id==='step'){o.type='triangle';o.frequency.setValueAtTime(50,t);o.frequency.exponentialRampToValueAtTime(10,t+0.1);g.gain.setValueAtTime(0.1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.1);o.start(t);o.stop(t+0.1);}else if(id==='attack'){o.type='sawtooth';o.frequency.setValueAtTime(100,t);o.frequency.linearRampToValueAtTime(50,t+0.1);g.gain.setValueAtTime(0.1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.1);o.start(t);o.stop(t+0.1);}else if(id==='hit'){o.type='sawtooth';o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(10,t+0.3);g.gain.setValueAtTime(0.2,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.3);o.start(t);o.stop(t+0.3);}else if(id==='kill'){o.type='sine';o.frequency.setValueAtTime(440,t);o.frequency.exponentialRampToValueAtTime(880,t+0.2);g.gain.setValueAtTime(0.1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.4);o.start(t);o.stop(t+0.4);}else if(id==='shop'){o.type='triangle';o.frequency.setValueAtTime(600,t);g.gain.setValueAtTime(0.05,t);g.gain.exponentialRampToValueAtTime(0.001,t+1.0);o.start(t);o.stop(t+1.0);}else if(id==='glitch'){o.type='sawtooth';o.frequency.setValueAtTime(Math.random()*200+50,t);o.frequency.linearRampToValueAtTime(Math.random()*200+50,t+0.2);g.gain.setValueAtTime(0.1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.2);o.start(t);o.stop(t+0.2);}}
 window.addEventListener('keydown',e=>{if(!actx&&document.getElementById('game-wrapper').style.display!=='none'){actx=new(window.AudioContext||window.webkitAudioContext)();actx.resume();}if(game.timers.shake>0)return;if(game.mode==='GAME')inputGame(e);else if(game.mode==='SHOP')inputShop(e);});
-function inputShop(e){if(e.key==='r'){respawn();return;}if(e.key==='l'){game.lockMode=!game.lockMode;return;}if(e.key===' '){if(meta.bits>=game.rerollCost){sfx('shop');meta.bits-=game.rerollCost;game.rerollCost*=3;meta.lockedItems=game.shopItems.filter(i=>i.locked&&!i.purchased).map(i=>({itemName:i.item.name,tierName:i.tier.name,cost:i.cost}));generateShop();save();updateUI();}else game.timers.shake=5;return;}let k=parseInt(e.key);if(k>0&&k<=game.shopItems.length){let o=game.shopItems[k-1];if(game.lockMode){if(o.purchased)return;if(o.locked)o.locked=false;else{let c=Math.max(1,(o.cost*0.1)|0);if(meta.bits>=c){sfx('step');meta.bits-=c;o.locked=true;addParticle(CVS.width/2,CVS.height/2,"GESPERRT",'#fff');}else game.timers.shake=5;}}else if(!o.purchased){if(meta.bits>=o.cost){sfx('shop');meta.bits-=o.cost;o.purchased=true;o.locked=false;let v=o.item.calc(o.tier);o.item.run(meta,v);let txt=o.item.unit==='%'?`+${Math.round(v*100)}%`:`+${v} ${o.item.unit}`;addParticle(CVS.width/2,CVS.height/2,txt,o.tier.col==='RAINBOW'?'#fff':o.tier.col);game.timers.shake=3;save();}else game.timers.shake=5;}updateUI();}}
+function inputShop(e){if(e.key==='i'){inv_toggle();return;}if(e.key==='r'){respawn();return;}if(e.key==='l'){game.lockMode=!game.lockMode;return;}if(e.key===' '){if(meta.bits>=game.rerollCost){sfx('shop');meta.bits-=game.rerollCost;game.rerollCost*=3;meta.lockedItems=game.shopItems.filter(i=>i.locked&&!i.purchased).map(i=>({itemName:i.item.name,tierName:i.tier.name,cost:i.cost}));generateShop();save();updateUI();}else game.timers.shake=5;return;}let k=parseInt(e.key);if(k>0&&k<=game.shopItems.length){let o=game.shopItems[k-1];if(game.lockMode){if(o.purchased)return;if(o.locked)o.locked=false;else{let c=Math.max(1,(o.cost*0.1)|0);if(meta.bits>=c){sfx('step');meta.bits-=c;o.locked=true;addParticle(CVS.width/2,CVS.height/2,"GESPERRT",'#fff');}else game.timers.shake=5;}}else if(!o.purchased){if(meta.bits>=o.cost){sfx('shop');meta.bits-=o.cost;o.purchased=true;o.locked=false;let v=o.item.calc(o.tier);o.item.run(meta,v);let txt=o.item.unit==='%'?`+${Math.round(v*100)}%`:`+${v} ${o.item.unit}`;addParticle(CVS.width/2,CVS.height/2,txt,o.tier.col==='RAINBOW'?'#fff':o.tier.col);game.timers.shake=3;save();}else game.timers.shake=5;}updateUI();}}
 function inputGame(e){
     if(meta.hp<=0 || game.lockInput) return;
     let dx=0,dy=0,acted=false;
