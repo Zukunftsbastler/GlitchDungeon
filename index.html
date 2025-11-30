@@ -267,7 +267,21 @@ const BESTIARY = {
   WRAITH: { n:'Schatten', ai:'PATROL', st:[1.2, 1.5, 1.2, 1.5] },
   ELEMENTAL: { n:'Elementar', ai:'PATROL', st:[2, 1.5, 0.8, 1.8] }
 };
-const ADJ = ["Rostig","Uralt","Verflucht","Giftig","Brennend","Eisig","Dunkel","Wild","Hungrig","Groß"];
+const ADJ_DATA = {
+  "Rostig": { hp:0.7, col:'#8b4513' },
+  "Uralt": { hp:1.3, dmg:0.8, col:'#888' },
+  "Verflucht": { hp:0.8, dmg:1.2, col:'#800080', fx:'CURSE' },
+  "Giftig": { col:'#0f0', fx:'POISON' },
+  "Brennend": { dmg:1.5, col:'#f40', fx:'BURN' },
+  "Eisig": { hp:1.2, col:'#0ff', fx:'FREEZE' },
+  "Dunkel": { sight:12, col:'#333' },
+  "Riesig": { hp:2.0, spd:0.8, col:'#555' },
+  "Flink": { spd:1.5, hp:0.6, col:'#ff0' },
+  "Wild": { spd:1.2, dmg:1.2, col:'#f00' },
+  "Hungrig": { fx:'LIFESTEAL', col:'#a00' },
+  "Goldener": { hp:1.5, col:'#ffd700', fx:'RICH' }
+};
+const ADJ = Object.keys(ADJ_DATA);
 
 // Tile Effects: 2:Slide, 3:Slow, 4:Dmg, 5:Teleport, 6:HealEnemy
 const TILE_FX = {
@@ -294,7 +308,18 @@ const CLASSES = {
 };
 
 // --- ITEMS & RPG ---
-const I_MATS = [{n:"Holz",m:0.5,c:'#a65'},{n:"Eisen",m:1.0,c:'#ccc'},{n:"Stahl",m:1.5,c:'#fff'},{n:"Obsidian",m:2.0,c:'#404'},{n:"Mithril",m:3.0,c:'#0ff'},{n:"Adamant",m:5.0,c:'#0f0'},{n:"Licht",m:8.0,c:'#ff0'},{n:"Arkan",m:15.0,c:'#f0f'}];
+const I_MATS = [
+    {n:"Holz",m:0.5,c:'#a65',b:{stamCost:-1}},
+    {n:"Eisen",m:1.0,c:'#ccc'},
+    {n:"Stahl",m:1.5,c:'#fff'},
+    {n:"Obsidian",m:2.0,c:'#404',b:{critChance:0.05}},
+    {n:"Mithril",m:3.0,c:'#0ff',b:{stamCost:-2}},
+    {n:"Adamant",m:5.0,c:'#0f0'},
+    {n:"Licht",m:8.0,c:'#ff0',b:{torchRadius:50}},
+    {n:"Arkan",m:15.0,c:'#f0f',b:{manaRegen:1}},
+    {n:"Gold",m:1.2,c:'#ffd700',b:{lootMul:0.2}},
+    {n:"Vampirisch",m:2.0,c:'#800',b:{lifesteal:0.1}}
+];
 const I_TYPES = [{n:"Dolch",s:"WEAPON",stat:"dmg",v:2},{n:"Schwert",s:"WEAPON",stat:"dmg",v:4},{n:"Axt",s:"WEAPON",stat:"dmg",v:6},{n:"Stab",s:"WEAPON",stat:"dmg",v:3},{n:"Robe",s:"ARMOR",stat:"maxHp",v:5},{n:"Leder",s:"ARMOR",stat:"maxHp",v:10},{n:"Platte",s:"ARMOR",stat:"maxHp",v:20},{n:"Ring",s:"RELIC",stat:"luck",v:5},{n:"Amulett",s:"RELIC",stat:"crit",v:0.02}];
 const I_SUFFIX = [{n:"des Blutes",stat:"lifesteal",v:0.05},{n:"des Windes",stat:"dodgeChance",v:0.05},{n:"des Zorns",stat:"critChance",v:0.05},{n:"der Gier",stat:"lootMul",v:0.2},{n:"des Lichts",stat:"torchRadius",v:30},{n:"der Zeit",stat:"glitchMod",v:5}];
 const R_NAMES = ["Rostig","Alt","Geschmiedet","Gehärtet","Edel","Meisterhaft","Königlich","Verflucht","Dämonisch","Göttlich","EWIG"];
@@ -325,7 +350,7 @@ if(localStorage.getItem('GD4_Dark_Save')) {
     meta.bits = s.bits; meta.maxLvl = s.maxLvl; meta.shopSlots=s.shopSlots; meta.shopLuck=s.shopLuck;
 }
 
-let game = { mode:'GAME', map:[], walls:{}, level:1, biome:0, p:{x:1,y:1,en:0,dir:{x:0,y:1}, hidden:false}, enemies:[], items:[], particles:[], shopItems:[], torches:[], inventory:[], equipment:{WEAPON:null,ARMOR:null,RELIC:null}, stats:{}, key:{x:0,y:0}, exit:{x:0,y:0}, timers:{glitch:25,stun:0,shake:0}, lockMode:false, rerollCost:10, lockInput:false, aiming:false, mouse:{x:0,y:0} };
+let game = { mode:'GAME', map:[], walls:{}, level:1, biome:0, p:{x:1,y:1,en:0,dir:{x:0,y:1}, hidden:false}, enemies:[], items:[], particles:[], shopItems:[], torches:[], inventory:[], equipment:{WEAPON:null,ARMOR:null,RELIC:null}, stats:{}, key:{x:0,y:0}, exit:{x:0,y:0}, timers:{glitch:25,stun:0,shake:0,poison:0,burn:0}, lockMode:false, rerollCost:10, lockInput:false, aiming:false, mouse:{x:0,y:0} };
 
 // --- LOGIC ---
 // Init Class Buttons
@@ -445,12 +470,18 @@ function spawnActors() {
     if(B.n==="NEKRO") hue=120;
     
     let adj = ADJ[rnd(0,ADJ.length-1)];
+    let ad = ADJ_DATA[adj];
+    
+    hp = Math.floor(hp*(ad.hp||1));
+    dmg = Math.floor(dmg*(ad.dmg||1));
+    spd = Math.floor(spd*(ad.spd||1));
     
     game.enemies.push({
         x:pos.x, y:pos.y, hp, max:hp, 
         dmg, bits:xp, hue, type:typeKey,
+        col: ad.col, fx: ad.fx, sight: ad.sight||6,
         name: `${adj} ${type.n}`,
-        energy: rnd(0,50), speed: spd, state: type.ai, sight: 6
+        energy: rnd(0,50), speed: spd, state: type.ai
     });
   }
   
@@ -470,8 +501,9 @@ function movePlayer(dx, dy) {
     let k = `${nx},${ny}`;
     if(game.walls[k]) {
       if(game.p.hidden){addParticle(game.p.x,game.p.y,"Psst...",'#555');return false;} // Stealth cannot mine
-      if(meta.stam<2){addParticle(game.p.x,game.p.y,"MÜDE!",'#555');return false;}
-      meta.stam-=2;
+      let cost = Math.max(0, 2+(game.stats.stamCost||0));
+      if(meta.stam<cost){addParticle(game.p.x,game.p.y,"MÜDE!",'#555');return false;}
+      meta.stam-=cost;
       game.p.actNoise = 3; // Loud Mining
       game.walls[k] -= meta.mine; 
       addParticle(nx, ny, "RISS", '#777');
@@ -489,8 +521,9 @@ function movePlayer(dx, dy) {
   let target = game.enemies.find(e=>e.x===nx && e.y===ny);
   if(target) {
     if(game.p.hidden){addParticle(game.p.x,game.p.y,"Psst...",'#555');return false;} // Stealth cannot attack
-    if(meta.stam<3){addParticle(game.p.x,game.p.y,"MÜDE!",'#555');return false;}
-    meta.stam-=3;
+    let cost = Math.max(1, 3+(game.stats.stamCost||0));
+    if(meta.stam<cost){addParticle(game.p.x,game.p.y,"MÜDE!",'#555');return false;}
+    meta.stam-=cost;
     game.p.actNoise = 3; // Loud Attack
     sfx('attack');
     let isCrit = Math.random()<game.stats.critChance;
@@ -624,7 +657,13 @@ function enemyAct(e) {
     }
     if(nx===game.p.x && ny===game.p.y) {
         if(Math.random()<game.stats.dodgeChance) addParticle(game.p.x,game.p.y,"AUSGEWICHEN",'#aaa');
-        else { meta.hp-=e.dmg; sfx('hit'); addParticle(game.p.x,game.p.y,`-${e.dmg} HP`,'#f00'); game.timers.shake=5; }
+        else { 
+            meta.hp-=e.dmg; sfx('hit'); addParticle(game.p.x,game.p.y,`-${e.dmg} HP`,'#f00'); game.timers.shake=5; 
+            if(e.fx==='POISON'){game.timers.poison=20;addParticle(game.p.x,game.p.y,"VERGIFTET!",'#0f0');}
+            if(e.fx==='BURN'&&Math.random()<0.3){game.timers.burn=10;addParticle(game.p.x,game.p.y,"BRENNT!",'#f60');}
+            if(e.fx==='FREEZE'){meta.stam=Math.max(0,meta.stam-5);addParticle(game.p.x,game.p.y,"EISIG!",'#0ff');}
+            if(e.fx==='LIFESTEAL'){e.hp=Math.min(e.max,e.hp+e.dmg);addParticle(e.x,e.y,"LEBENSDIEB",'#a00');}
+        }
     } else { e.x=nx; e.y=ny; }
 }
 
@@ -633,6 +672,9 @@ function turnLogic() {
   if(game.p.hasKey && game.p.x===game.exit.x && game.p.y===game.exit.y) { startLevel(game.level+1); return; }
 
   // Global Glitch Timer
+  if(game.timers.burn>0){game.timers.burn--;if(game.timers.burn%2===0){meta.hp-=1;addParticle(game.p.x,game.p.y,"FEUER",'#f40');}}
+  if(game.timers.poison>0)game.timers.poison--;
+
   game.timers.glitch--;
   if(game.timers.glitch<=0) {
     game.timers.glitch=25+game.stats.glitchMod; game.timers.shake=5; sfx('glitch'); addParticle(game.p.x,game.p.y,"REALITÄTSBRUCH",'#f0f');
@@ -694,7 +736,10 @@ function drawGame() {
   
   game.enemies.forEach((e,idx)=>{
     // Pass Type Key to drawSprite
-    drawSprite(CTX,e.x*TILE,e.y*TILE,(e.x+e.y+idx)*10,e.type,`hsl(${e.hue},60%,50%)`);
+    if(e.fx==='BURN'&&Math.random()<0.1)addParticle(e.x,e.y,'~','#f40',0.5);
+    if(e.fx==='POISON'&&Math.random()<0.05)addParticle(e.x,e.y,'o','#0f0',0.3);
+    
+    drawSprite(CTX,e.x*TILE,e.y*TILE,(e.x+e.y+idx)*10,e.type,e.col||`hsl(${e.hue},60%,50%)`);
     CTX.fillStyle='red';CTX.fillRect(e.x*TILE,e.y*TILE-8,32,2);
     CTX.fillStyle='#0f0';CTX.fillRect(e.x*TILE,e.y*TILE-8,32*(e.hp/e.max),2);
   });
@@ -867,10 +912,37 @@ function rnd(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
 function addParticle(x,y,txt,col,spd=1){game.particles.push({x:x*TILE+16,y:y*TILE,txt,col,life:60,speed:0.5*spd});}
 function genItem(lvl){
     let mat=I_MATS[Math.min(I_MATS.length-1,Math.floor(Math.random()*(lvl/2+1)))];
+    
+    // Rarity Roll: Linear progression based on Level
+    let rMax = 2 + lvl * 0.4;
+    let rIdx = Math.floor(Math.random() * rMax + (game.stats.shopLuck||0)/20);
+    rIdx = Math.min(RARITIES.length-1, Math.max(0, rIdx));
+    let rar = RARITIES[rIdx];
+
     let type=I_TYPES[rnd(0,I_TYPES.length-1)];
-    let item={id:Math.random(),name:`${mat.n} ${type.n}`,slot:type.s,col:mat.c,mods:{}};
-    item.mods[type.stat]=(type.v*mat.m); if(!['maxHp','dmg','torchRadius'].includes(type.stat)) item.mods[type.stat]=parseFloat(item.mods[type.stat].toFixed(2));
-    if(Math.random()<0.3+(lvl*0.05)){let s=I_SUFFIX[rnd(0,I_SUFFIX.length-1)];item.name+=" "+s.n;item.mods[s.stat]=(item.mods[s.stat]||0)+s.v;if(s.stat.includes('Chance')||s.stat==='lootMul')item.mods[s.stat]=parseFloat(item.mods[s.stat].toFixed(2));}
+    let item={
+        id:Math.random(),
+        name:`${rar.name} ${mat.n} ${type.n}`,
+        slot:type.s,
+        col:mat.c, // Material Color (Pixel Art)
+        rarityCol: rar.col, // Rarity Color (Border)
+        mods:{}
+    };
+    
+    if(mat.b) Object.assign(item.mods, mat.b);
+    
+    // Stats: Base * Mat * Rarity
+    let val = type.v * mat.m * rar.mul;
+    item.mods[type.stat] = val;
+    if(!['maxHp','dmg','torchRadius'].includes(type.stat)) item.mods[type.stat]=parseFloat(val.toFixed(2));
+    else item.mods[type.stat] = Math.round(val);
+
+    if(Math.random()<0.3+(lvl*0.05)){
+        let s=I_SUFFIX[rnd(0,I_SUFFIX.length-1)];
+        item.name+=" "+s.n;
+        item.mods[s.stat]=(item.mods[s.stat]||0)+s.v;
+        if(s.stat.includes('Chance')||s.stat==='lootMul') item.mods[s.stat]=parseFloat(item.mods[s.stat].toFixed(2));
+    }
     return item;
 }
 function calcStats(){game.stats={...meta};Object.values(game.equipment).forEach(it=>{if(it)Object.keys(it.mods).forEach(k=>game.stats[k]=(game.stats[k]||0)+it.mods[k]);});game.stats.critChance=Math.min(1.0,game.stats.critChance);game.stats.dodgeChance=Math.min(0.75,game.stats.dodgeChance);}
@@ -880,7 +952,7 @@ function triggerGameOver(){game.mode='SHOP';game.rerollCost=10;generateShop();do
 function generateShop(){game.shopItems=[];let slots=meta.shopSlots;if(meta.lockedItems&&meta.lockedItems.length>0){meta.lockedItems.forEach(li=>{if(game.shopItems.length<slots){let base=ITEM_POOL.find(i=>i.name===li.itemName),tier=RARITIES.find(r=>r.name===li.tierName);if(base&&tier)game.shopItems.push({idx:game.shopItems.length+1,item:base,tier,cost:li.cost,purchased:false,locked:true});}});meta.lockedItems=[];}while(game.shopItems.length<slots){let base=ITEM_POOL[rnd(0,ITEM_POOL.length-1)],roll=Math.random()*100-meta.shopLuck,rIndex=0;for(let i=RARITIES.length-1;i>=0;i--)if(roll<RARITIES[i].chance){rIndex=i;break;}let tier=RARITIES[rIndex],cost=Math.floor(base.baseCost*tier.mul);game.shopItems.push({idx:game.shopItems.length+1,item:base,tier,cost,purchased:false,locked:false});}}
 function respawn(){meta.hp=meta.maxHp;meta.lockedItems=game.shopItems.filter(i=>i.locked&&!i.purchased).map(i=>({itemName:i.item.name,tierName:i.tier.name,cost:i.cost}));game.mode='GAME';startLevel(1);}
 function isBlocked(x,y){if(game.map[y][x]===1)return true;if(game.enemies.some(e=>e.x===x&&e.y===y))return true;return false;}
-function checkPickups(){let idx=game.items.findIndex(i=>i.x===game.p.x&&i.y===game.p.y);if(idx>=0){sfx('shop');let item=game.items[idx];game.items.splice(idx,1);if(item.type==='EQUIP'){if(game.inventory.length<10){game.inventory.push(item.val);addParticle(game.p.x,game.p.y,item.val.name,item.val.col);}else{addParticle(game.p.x,game.p.y,"VOLL!",'#f00');game.items.push(item);return;}}else{if(item.type===0){meta.hp=Math.min(meta.hp+5,game.stats.maxHp);addParticle(game.p.x,game.p.y,"HEILUNG",'#0f0');}if(item.type===1){meta.mana=Math.min(meta.mana+10,game.stats.maxMana);addParticle(game.p.x,game.p.y,"MANA",'#0af');}if(item.type===2){let b=Math.floor((10+game.level*5)*game.stats.lootMul);meta.bits+=b;addParticle(game.p.x,game.p.y,`+${b}`,C.BITS);}if(item.type===3&&meta.scrolls<5){meta.scrolls++;addParticle(game.p.x,game.p.y,"RITUAL",'#f60');}}}}
+function checkPickups(){let idx=game.items.findIndex(i=>i.x===game.p.x&&i.y===game.p.y);if(idx>=0){sfx('shop');let item=game.items[idx];game.items.splice(idx,1);if(item.type==='EQUIP'){if(game.inventory.length<10){game.inventory.push(item.val);addParticle(game.p.x,game.p.y,item.val.name,item.val.rarityCol||item.val.col);}else{addParticle(game.p.x,game.p.y,"VOLL!",'#f00');game.items.push(item);return;}}else{if(item.type===0){if(game.timers.poison>0)addParticle(game.p.x,game.p.y,"GIFT BLOCKT!",'#0f0');else{meta.hp=Math.min(meta.hp+5,game.stats.maxHp);addParticle(game.p.x,game.p.y,"HEILUNG",'#0f0');}}if(item.type===1){meta.mana=Math.min(meta.mana+10,game.stats.maxMana);addParticle(game.p.x,game.p.y,"MANA",'#0af');}if(item.type===2){let b=Math.floor((10+game.level*5)*game.stats.lootMul);meta.bits+=b;addParticle(game.p.x,game.p.y,`+${b}`,C.BITS);}if(item.type===3&&meta.scrolls<5){meta.scrolls++;addParticle(game.p.x,game.p.y,"RITUAL",'#f60');}}}}
 function updateUI(){
     document.getElementById('ui-lvl').innerText=game.level;
     document.getElementById('ui-hp').innerText=Math.round(meta.hp)+"/"+game.stats.maxHp;
@@ -1040,7 +1112,20 @@ function useSkill() {
 }
 
 function inv_toggle(){let el=document.getElementById('inv-screen');if(el.style.display==='block')el.style.display='none';else{renderInv();el.style.display='block';}}
-function renderInv(){let h='';['WEAPON','ARMOR','RELIC'].forEach(s=>{let it=game.equipment[s];h+=`<div class="inv-slot ${it?'equipped':''}" onclick="inv_unequip('${s}')"><div class="equip-slot-label">${s}</div>${it?`<div style="color:${it.col}">${it.name}</div>${renderMods(it)}`:'<span style="color:#333">LEER</span>'}</div>`;});document.getElementById('equip-display').innerHTML=h;h='';game.inventory.forEach((it,i)=>{h+=`<div class="inv-slot" onclick="inv_equip(${i})"><div style="color:${it.col}">${it.name}</div>${renderMods(it)}</div>`;});document.getElementById('inv-display').innerHTML=h;}
+function renderInv(){
+  let h='';
+  ['WEAPON','ARMOR','RELIC'].forEach(s=>{
+      let it=game.equipment[s];
+      let st=it ? `border-color:${it.rarityCol||'#333'};box-shadow:0 0 8px ${it.rarityCol||'#000'};` : '';
+      h+=`<div class="inv-slot ${it?'equipped':''}" style="${st}" onclick="inv_unequip('${s}')"><div class="equip-slot-label">${s}</div>${it?`<div style="color:${it.col}">${it.name}</div>${renderMods(it)}`:'<span style="color:#333">LEER</span>'}</div>`;
+  });
+  document.getElementById('equip-display').innerHTML=h;h='';
+  game.inventory.forEach((it,i)=>{
+      let st=`border-color:${it.rarityCol||'#333'};box-shadow:0 0 5px ${it.rarityCol||'#000'};`;
+      h+=`<div class="inv-slot" style="${st}" onclick="inv_equip(${i})"><div style="color:${it.col}">${it.name}</div>${renderMods(it)}</div>`;
+  });
+  document.getElementById('inv-display').innerHTML=h;
+}
 function renderMods(it){
     let bonus = '';
     // Check Class Bonus
