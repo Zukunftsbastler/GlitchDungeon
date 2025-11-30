@@ -348,7 +348,7 @@ const I_TYPES = [
     {n:"Amulett",s:"RELIC",baseCost:80,mods:{critChance:0.02}}
 ];
 const I_SUFFIX = [{n:"des Blutes",stat:"lifesteal",v:0.05},{n:"des Windes",stat:"dodgeChance",v:0.05},{n:"des Zorns",stat:"critChance",v:0.05},{n:"der Gier",stat:"lootMul",v:0.2},{n:"des Lichts",stat:"torchRadius",v:30},{n:"der Zeit",stat:"glitchMod",v:5}];
-const R_NAMES = ["Rostig","Alt","Geschmiedet","Gehärtet","Edel","Meisterhaft","Königlich","Verflucht","Dämonisch","Göttlich","EWIG"];
+const R_NAMES = ["Abgenutzt", "Alt", "Solide", "Raffiniert", "Edel", "Meisterhaft", "Königlich", "Mystisch", "Legendär", "Göttlich", "EWIG"];
 const RARITIES = R_NAMES.map((n,i) => ({name:n, mul:1+i*0.8, chance:Math.max(0.1,50/Math.pow(2,i)), col:i===R_NAMES.length-1?'RAINBOW':`hsl(${40},${20+(i/10)*80}%,${50+i*2}%)`}));
 const T_NAMES = ["Grundlagen", "Anfänger", "Fortgeschritten", "Geübt", "Profi", "Veteran", "Experte", "Meister", "Großmeister", "Legende", "Transzendent"];
 
@@ -372,7 +372,14 @@ const ITEM_POOL = [
   {name:'Stille',vis:'BOOK',baseCost:100,unit:'NOISE',calc:t=>Math.ceil(t.mul*0.5),run:(m,v)=>{m.noise=Math.max(0,m.noise-v);calcStats()}},
   {name:'Kondition',vis:'BOOK',baseCost:90,unit:'REG',calc:t=>parseFloat((t.mul*0.1).toFixed(2)),run:(m,v)=>{m.stamRegen=(m.stamRegen||1)+v;calcStats()}},
   {name:'Meditation',vis:'BOOK',baseCost:90,unit:'REG',calc:t=>parseFloat((t.mul*0.1).toFixed(2)),run:(m,v)=>{m.manaRegen=(m.manaRegen||0)+v;calcStats()}},
-  {name:'Bergbau',vis:'BOOK',baseCost:80,unit:'PWR',calc:t=>Math.floor(t.mul*0.5),run:(m,v)=>{m.mine+=v;calcStats()}}
+  {name:'Bergbau',vis:'BOOK',baseCost:80,unit:'PWR',calc:t=>Math.floor(t.mul*0.5),run:(m,v)=>{m.mine+=v;calcStats()}},
+  // Balance Update: Glitch Stabilisierung
+  {name:'Chronos-Anker',vis:'RELIC',baseCost:60,unit:'RUNDEN',calc:t=>Math.ceil(t.mul*2),run:(m,v)=>{
+      let it={id:Math.random(),name:'Chronos-Anker',slot:'RELIC',col:'#0ff',mods:{glitchMod:v}};
+      if(game.inventory.length<10){game.inventory.push(it);addParticle(game.p.x,game.p.y,"ANKER!",'#0ff');}
+      else{game.items.push({x:game.p.x,y:game.p.y,type:'EQUIP',val:it});addParticle(game.p.x,game.p.y,"BODEN!",'#fff');}
+  }},
+  {name:'Fokus',vis:'BOOK',baseCost:80,unit:'RUNDEN',calc:t=>Math.ceil(t.mul*1.5),run:(m,v)=>{m.glitchMod=(m.glitchMod||0)+v;calcStats()}}
 ];
 
 // --- STATE ---
@@ -448,7 +455,7 @@ function startLevel(lvl) {
   // Colors
   C.WALL=B.c[0]; C.FLOOR=B.c[1]; C.PL=B.c[3];
 
-  game.p.hasKey=false; game.p.hidden=false; game.timers.glitch=25+meta.glitchMod; game.timers.stun=0;
+  game.p.hasKey=false; game.p.hidden=false; game.timers.glitch=15+(game.stats.glitchMod||0); game.glitchCount=0; game.timers.stun=0;
   game.enemies=[]; game.items=[]; game.particles=[]; game.torches=[]; game.walls={};
   
   meta.hp = Math.min(meta.hp, game.stats.maxHp); if(meta.hp<=0)meta.hp=game.stats.maxHp;
@@ -720,14 +727,40 @@ function turnLogic() {
 
   game.timers.glitch--;
   if(game.timers.glitch<=0) {
-    game.timers.glitch=25+game.stats.glitchMod; game.timers.shake=5; sfx('glitch'); addParticle(game.p.x,game.p.y,"REALITÄTSBRUCH",'#f0f');
+    game.glitchCount++;
+    game.timers.glitch=15+game.stats.glitchMod; game.timers.shake=5; sfx('glitch'); 
+    addParticle(game.p.x,game.p.y,`REALITÄTSBRUCH (${game.glitchCount})`,'#f0f');
+    if(game.glitchCount>5){sfx('kill');setTimeout(()=>sfx('kill'),150);}
+
+    let shiftAmt = 5 + (game.glitchCount * 2);
     let B = BIOMES[game.biome];
-    for(let i=0;i<5;i++) {
+    for(let i=0;i<shiftAmt;i++) {
       let rx=rnd(1,GRID-2), ry=rnd(1,GRID-2);
       if(rx!==game.p.x||ry!==game.p.y) {
          game.map[ry][rx] = (Math.random()<0.5) ? B.f(rx,ry) : (game.map[ry][rx]?0:1);
          if(game.map[ry][rx]===1) game.walls[`${rx},${ry}`]=B.hp;
       }
+    }
+
+    if(game.glitchCount > 3) {
+       let pool = (game.glitchCount > 6) ? Object.keys(BESTIARY) : B.mobs;
+       let tKey = pool[rnd(0, pool.length-1)];
+       let tObj = BESTIARY[tKey];
+       let diff = game.level * ((game.glitchCount>6)?(game.glitchCount/2):1);
+       let hp = ((tObj.st[0]*15) + diff*2) * (1 + game.glitchCount * 0.2);
+       
+       game.enemies.push({
+           x:rnd(1,GRID-2), y:rnd(1,GRID-2), 
+           hp:hp, max:hp, 
+           dmg: (tObj.st[1]*2 + diff/2)|0, 
+           bits: 0, 
+           name: "GLITCH " + tObj.n, 
+           col: '#f0f', 
+           hue: 300, 
+           state: 'HUNT', 
+           type: tKey, 
+           speed: 10, energy: 50, stun:0, fx:'NONE'
+       });
     }
   }
   if(meta.hp<=0) triggerGameOver();
