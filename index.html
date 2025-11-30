@@ -546,7 +546,7 @@ function movePlayer(dx, dy) {
       if(game.p.hidden){addParticle(game.p.x,game.p.y,"Psst...",'#555');return false;} // Stealth cannot mine
       let cost = Math.max(0, 2+(game.stats.stamCost||0));
       if(meta.stam<cost){addParticle(game.p.x,game.p.y,"MÜDE!",'#555');return false;}
-      meta.stam-=cost;
+      meta.stam-=cost; game.exert=1;
       game.p.actNoise = 3; // Loud Mining
       game.walls[k] -= (game.stats.mine||meta.mine); 
       addParticle(nx, ny, "RISS", '#777');
@@ -566,7 +566,7 @@ function movePlayer(dx, dy) {
     if(game.p.hidden){addParticle(game.p.x,game.p.y,"Psst...",'#555');return false;} // Stealth cannot attack
     let cost = Math.max(1, 3+(game.stats.stamCost||0));
     if(meta.stam<cost){addParticle(game.p.x,game.p.y,"MÜDE!",'#555');return false;}
-    meta.stam-=cost;
+    meta.stam-=cost; game.exert=1;
     game.p.actNoise = 3; // Loud Attack
     sfx('attack');
     let isCrit = Math.random()<game.stats.critChance;
@@ -623,7 +623,8 @@ function processTurns() {
                    sfx('hit');
                }
             } else {
-               meta.stam = Math.min(game.stats.maxStam, meta.stam + (game.stats.stamRegen||1)); // Stamina regen
+               if(!game.exert) meta.stam = Math.min(game.stats.maxStam, meta.stam + (game.stats.stamRegen||1)); // Stamina regen
+               game.exert=0;
             }
             // Mana Regen
             if(game.stats.manaRegen > 0 && meta.mana < game.stats.maxMana) {
@@ -1213,7 +1214,7 @@ function useSkill() {
 
     if(c === 'WARRIOR') {
         // Whirlwind
-        meta[res] -= cost;
+        meta[res] -= cost; if(res==='stam')game.exert=1;
         sfx('attack');
         addParticle(game.p.x, game.p.y, "WIRBELWIND!", '#fff');
         for(let iy=-1; iy<=1; iy++) {
