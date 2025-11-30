@@ -183,6 +183,23 @@
         #actions button:active, #dpad button:active { border-color: var(--accent-color); color: var(--accent-color); }
         .disabled { filter: grayscale(1) brightness(0.3); pointer-events: none; border-color: #222 !important; }
         #tt { position:fixed; background:rgba(0,0,0,0.9); border:1px solid #888; padding:5px; pointer-events:none; display:none; z-index:100; font-size:12px; white-space:pre; }
+        
+        /* SLIDER CUSTOMIZATION */
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; margin: 10px 0; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%; background: #8a0b0b; cursor: pointer; margin-top: -7px; border: 1px solid #c5a059; box-shadow: 0 0 8px #f00; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #333; border-radius: 2px; border: 1px solid #555; }
+        input[type=range]:focus { outline: none; }
+        /* Firefox support */
+        input[type=range]::-moz-range-thumb { height: 18px; width: 18px; border-radius: 50%; background: #8a0b0b; cursor: pointer; border: 1px solid #c5a059; box-shadow: 0 0 8px #f00; }
+        input[type=range]::-moz-range-track { width: 100%; height: 4px; cursor: pointer; background: #333; border-radius: 2px; border: 1px solid #555; }
+
+        #level-announcement {
+            position: absolute; top: 150px; left: 50%; transform: translateX(-50%);
+            text-align: center; width: 100%; pointer-events: none; z-index: 50;
+            opacity: 0; transition: opacity 1s;
+        }
+        .lvl-title { font-family: var(--font-display); font-size: 3rem; color: var(--accent-color); text-shadow: 0 0 20px #000; animation: pulse 2s infinite; }
+        .lvl-hint { font-family: var(--font-serif); font-size: 1.4rem; color: #eee; text-shadow: 0 0 10px #000; margin-top: 5px; background: rgba(0,0,0,0.5); padding: 5px; display: inline-block; border-radius: 5px; }
     </style>
 </head>
 <body>
@@ -243,7 +260,13 @@
             <button onclick="act('HELP')" data-t="Hilfe">?</button>
         </div>
     </div>
+    <div id="lvl-select" style="display:none; position:absolute; top:510px; left:50%; transform:translateX(-50%); text-align:center; width:300px; z-index:20;">
+        <label style="color:#c5a059; font-family:var(--font-display); text-shadow:0 0 5px #000;">START: TIEFE <span id="lvl-val">1</span></label><br>
+        <input type="range" id="lvl-slider" min="1" max="1" value="1" title="Nutze deinen Meta-Fortschritt um Level zu überspringen" oninput="document.getElementById('lvl-val').innerText=this.value">
+        <div style="font-size:12px; color:#888; font-family:var(--font-serif); font-style:italic;">(Fortschritt nutzen)</div>
+    </div>
     <button id="btn-reincarnate" onclick="respawn()">Reinkarnation</button>
+    <div id="level-announcement"></div>
     <div id="tt"></div>
 </div>
 
@@ -256,16 +279,16 @@
 // --- BIOME CONFIGURATION ---
 // 0:Wall, 1:Floor, 2:Ice, 3:Mud, 4:Lava, 5:Glitch, 6:Necro
 const BIOMES = [
-  { n: "KATAKOMBEN", c: ['#444','#222','#000','#888'], f: (x,y)=>Math.random()<0.2 ? 1:0, hp: 10, sp: 0, mobs:['SKEL','RAT','SPIDER'] },
-  { n: "EISHÖHLE", c: ['#8ff','#004','#002','#aff'], f: (x,y)=>Math.sin(x/2)*Math.cos(y/2)>0.2 ? 1:0, hp: 12, sp: 2, mobs:['GOLEM','WRAITH','ELEMENTAL'] },
-  { n: "SUMPF", c: ['#462','#230','#120','#682'], f: (x,y)=>(x^y)%5===0 ? 0:1, hp: 10, sp: 3, mobs:['SLIME','SNAKE','BAT'] },
-  { n: "VULKAN", c: ['#611','#300','#200','#f40'], f: (x,y)=>Math.abs(Math.sin(x*y))>0.6 ? 1:4, hp: 15, sp: 4, mobs:['GOLEM','ELEMENTAL','EYE'] },
-  { n: "ASTRAL", c: ['#f0f','#000','#0f0','#f0f'], f: (x,y)=>Math.random()<0.1?5:1, hp: 8, sp: 5, mobs:['MIMIC','EYE','GHOST'] },
-  { n: "NEKRO", c: ['#2f2','#111','#020','#0f0'], f: (x,y)=>((x*y)%7===0)?6:1, hp: 12, sp: 6, mobs:['SKEL','WRAITH','GHOST'] },
-  { n: "KRISTALL", c: ['#c0f','#203','#102','#e0f'], f: (x,y)=>Math.sin(x)+Math.cos(y)>0.5?1:0, hp: 20, sp: 0, mobs:['ELEMENTAL','GOLEM'] },
-  { n: "LEERE", c: ['#333','#000','#000','#fff'], f: (x,y)=>Math.random()<0.05?1:0, hp: 10, sp: 0, mobs:['WRAITH','EYE'] },
-  { n: "LABYRINTH", c: ['#555','#333','#111','#aaa'], f: (x,y)=>((x+y)%2===0)?1:0, hp: 15, sp: 0, mobs:['RAT','SPIDER','MIMIC'] },
-  { n: "CHAOS", c: ['#f00','#0f0','#00f','#ff0'], f: (x,y)=>Math.random()<0.5?1:0, hp: 10, sp: 0, mobs:['MIMIC','GHOST','SNAKE'] }
+  { n: "KATAKOMBEN", hint: "Massive Wände versperren den Weg. Eine Spitzhacke ist Pflicht!", c: ['#444','#222','#000','#888'], f: (x,y)=>Math.random()<0.2 ? 1:0, hp: 10, sp: 0, mobs:['SKEL','RAT','SPIDER'] },
+  { n: "EISHÖHLE", hint: "Rutschiger Boden. Achte auf deinen Halt.", c: ['#8ff','#004','#002','#aff'], f: (x,y)=>Math.sin(x/2)*Math.cos(y/2)>0.2 ? 1:0, hp: 12, sp: 2, mobs:['GOLEM','WRAITH','ELEMENTAL'] },
+  { n: "SUMPF", hint: "Zäher Morast zehrt an deiner Ausdauer.", c: ['#462','#230','#120','#682'], f: (x,y)=>(x^y)%5===0 ? 0:1, hp: 10, sp: 3, mobs:['SLIME','SNAKE','BAT'] },
+  { n: "VULKAN", hint: "Extreme Hitze! Meide die Lava.", c: ['#611','#300','#200','#f40'], f: (x,y)=>Math.abs(Math.sin(x*y))>0.6 ? 1:4, hp: 15, sp: 4, mobs:['GOLEM','ELEMENTAL','EYE'] },
+  { n: "ASTRAL", hint: "Die Realität ist instabil. Pass auf Glitches auf.", c: ['#f0f','#000','#0f0','#f0f'], f: (x,y)=>Math.random()<0.1?5:1, hp: 8, sp: 5, mobs:['MIMIC','EYE','GHOST'] },
+  { n: "NEKRO", hint: "Der Tod ist hier zuhause.", c: ['#2f2','#111','#020','#0f0'], f: (x,y)=>((x*y)%7===0)?6:1, hp: 12, sp: 6, mobs:['SKEL','WRAITH','GHOST'] },
+  { n: "KRISTALL", hint: "Kristalline Strukturen blockieren den Weg. Hacken bereit?", c: ['#c0f','#203','#102','#e0f'], f: (x,y)=>Math.sin(x)+Math.cos(y)>0.5?1:0, hp: 20, sp: 0, mobs:['ELEMENTAL','GOLEM'] },
+  { n: "LEERE", hint: "Ein falscher Schritt und du fällst...", c: ['#333','#000','#000','#fff'], f: (x,y)=>Math.random()<0.05?1:0, hp: 10, sp: 0, mobs:['WRAITH','EYE'] },
+  { n: "LABYRINTH", hint: "Verwirrende Gänge. Verlier nicht die Orientierung!", c: ['#555','#333','#111','#aaa'], f: (x,y)=>((x+y)%2===0)?1:0, hp: 15, sp: 0, mobs:['RAT','SPIDER','MIMIC'] },
+  { n: "CHAOS", hint: "Erwarte das Unerwartete.", c: ['#f00','#0f0','#00f','#ff0'], f: (x,y)=>Math.random()<0.5?1:0, hp: 10, sp: 0, mobs:['MIMIC','GHOST','SNAKE'] }
 ];
 const BESTIARY = {
   SKEL: { n:'Skelett', ai:'SLEEP', st:[1, 1, 1, 1] },
@@ -337,9 +360,9 @@ const I_MATS = [
 // Updated I_TYPES with mods object and trade-offs
 const I_TYPES = [
     {n:["Dolch", "Kris", "Stilett", "Kurzschwert", "Kukri"],target:'ROGUE',s:"WEAPON",baseCost:20,mods:{dmg:2,speed:2}},
-    {n:["Schwert", "Säbel", "Langschwert", "Breitschwert"],target:'WARRIOR',s:"WEAPON",baseCost:40,mods:{dmg:4}},
-    {n:["Axt", "Beil", "Streitaxt", "Bartaxt"],target:'WARRIOR',s:"WEAPON",baseCost:60,mods:{dmg:6,speed:-2}},
-    {n:["Hammer", "Streitkolben", "Morgenstern", "Keule"],target:'WARRIOR',s:"WEAPON",baseCost:70,mods:{dmg:8,speed:-4}},
+    {n:["Schwert", "Säbel", "Langschwert", "Breitschwert"],target:'WARRIOR',s:"WEAPON",baseCost:40,mods:{dmg:4,maxStam:4}},
+    {n:["Axt", "Beil", "Streitaxt", "Bartaxt"],target:'WARRIOR',s:"WEAPON",baseCost:60,mods:{dmg:6,speed:-2,maxStam:4}},
+    {n:["Hammer", "Streitkolben", "Morgenstern", "Keule"],target:'WARRIOR',s:"WEAPON",baseCost:70,mods:{dmg:8,speed:-4,maxStam:4}},
     {n:["Stab", "Zepter", "Zauberstab", "Rute", "Knochenstab"],target:'MAGE',s:"WEAPON",baseCost:30,mods:{dmg:2,maxMana:10}},
     {n:["Spitzhacke", "Hacke", "Pickel"],target:'ALL',s:"WEAPON",baseCost:30,mods:{dmg:1,mine:4,speed:-1}},
     {n:["Robe"],target:'MAGE',s:"ARMOR",baseCost:40,mods:{def:0,maxMana:10,manaRegen:0.2}},
@@ -451,7 +474,11 @@ function startLevel(lvl) {
   
   // UI Update
   document.documentElement.style.setProperty('--accent-color', B.c[3]);
-  addParticle(GRID*TILE/2, GRID*TILE/2, B.n, B.c[3], 0.2);
+  // Announcement
+  let el = document.getElementById('level-announcement');
+  el.innerHTML = `<div class="lvl-title">${B.n}</div><div class="lvl-hint">${B.hint||""}</div>`;
+  el.style.opacity = 1;
+  setTimeout(() => el.style.opacity = 0, 4000);
   
   // Colors
   C.WALL=B.c[0]; C.FLOOR=B.c[1]; C.PL=B.c[3];
@@ -1055,6 +1082,7 @@ function genItem(lvl){
 }
 function calcStats(){
     game.stats={...meta};
+    game.stats.maxStam += (meta.maxLvl - 1);
     Object.values(game.equipment).forEach(it=>{
         if(it) Object.keys(it.mods).forEach(k=>game.stats[k]=(game.stats[k]||0)+it.mods[k]);
     });
@@ -1081,9 +1109,27 @@ function calcStats(){
 }
 function save(){localStorage.setItem('GD4_Dark_Save',JSON.stringify(meta));}
 function delSave(){if(confirm('Alles löschen?')){localStorage.removeItem('GD4_Dark_Save');location.reload();}}
-function triggerGameOver(){game.mode='SHOP';game.rerollCost=10;generateShop();document.getElementById('btn-reincarnate').style.display='block';save();}
+function triggerGameOver(){
+    game.mode='SHOP';game.rerollCost=10;generateShop();document.getElementById('btn-reincarnate').style.display='block';
+    if(meta.maxLvl>1){
+        document.getElementById('lvl-select').style.display='block';
+        let s=document.getElementById('lvl-slider');
+        s.max=meta.maxLvl; s.value=1;
+        document.getElementById('lvl-val').innerText=1;
+    }
+    save();
+}
 function generateShop(){game.shopItems=[];let slots=meta.shopSlots;if(meta.lockedItems&&meta.lockedItems.length>0){meta.lockedItems.forEach(li=>{if(game.shopItems.length<slots){let base=ITEM_POOL.find(i=>i.name===li.itemName),tier=RARITIES.find(r=>r.name===li.tierName);if(base&&tier)game.shopItems.push({idx:game.shopItems.length+1,item:base,tier,cost:li.cost,purchased:false,locked:true});}});meta.lockedItems=[];}while(game.shopItems.length<slots){let base=ITEM_POOL[rnd(0,ITEM_POOL.length-1)],roll=Math.random()*100-meta.shopLuck,rIndex=0;for(let i=RARITIES.length-1;i>=0;i--)if(roll<RARITIES[i].chance){rIndex=i;break;}let tier=RARITIES[rIndex],cost=Math.floor(base.baseCost*tier.mul);game.shopItems.push({idx:game.shopItems.length+1,item:base,tier,cost,purchased:false,locked:false});}}
-function respawn(){meta.hp=meta.maxHp;meta.lockedItems=game.shopItems.filter(i=>i.locked&&!i.purchased).map(i=>({itemName:i.item.name,tierName:i.tier.name,cost:i.cost}));game.mode='GAME';startLevel(1);}
+function respawn(){
+    meta.hp=meta.maxHp;
+    meta.stam=meta.maxStam;
+    meta.mana=meta.maxMana;
+    meta.lockedItems=game.shopItems.filter(i=>i.locked&&!i.purchased).map(i=>({itemName:i.item.name,tierName:i.tier.name,cost:i.cost}));
+    game.mode='GAME';
+    let sl=parseInt(document.getElementById('lvl-slider').value)||1;
+    document.getElementById('lvl-select').style.display='none';
+    startLevel(sl);
+}
 function isBlocked(x,y){if(game.map[y][x]===1)return true;if(game.enemies.some(e=>e.x===x&&e.y===y))return true;return false;}
 function checkPickups(){let idx=game.items.findIndex(i=>i.x===game.p.x&&i.y===game.p.y);if(idx>=0){sfx('shop');let item=game.items[idx];game.items.splice(idx,1);if(item.type==='EQUIP'){if(game.inventory.length<10){game.inventory.push(item.val);addParticle(game.p.x,game.p.y,item.val.name,item.val.rarityCol||item.val.col);}else{addParticle(game.p.x,game.p.y,"VOLL!",'#f00');game.items.push(item);return;}}else{if(item.type===0){if(game.timers.poison>0)addParticle(game.p.x,game.p.y,"GIFT BLOCKT!",'#0f0');else{meta.hp=Math.min(meta.hp+5,game.stats.maxHp);addParticle(game.p.x,game.p.y,"HEILUNG",'#0f0');}}if(item.type===1){meta.mana=Math.min(meta.mana+10,game.stats.maxMana);addParticle(game.p.x,game.p.y,"MANA",'#0af');}if(item.type===2){let b=Math.floor((10+game.level*5)*game.stats.lootMul);meta.bits+=b;addParticle(game.p.x,game.p.y,`+${b}`,C.BITS);}if(item.type===3&&meta.scrolls<5){meta.scrolls++;addParticle(game.p.x,game.p.y,"RITUAL",'#f60');}}}}
 function updateUI(){
