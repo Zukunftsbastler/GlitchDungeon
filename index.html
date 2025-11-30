@@ -336,16 +336,17 @@ const I_MATS = [
 ];
 // Updated I_TYPES with mods object and trade-offs
 const I_TYPES = [
-    {n:"Dolch",s:"WEAPON",baseCost:20,mods:{dmg:2,speed:2}},
-    {n:"Schwert",s:"WEAPON",baseCost:40,mods:{dmg:4}},
-    {n:"Axt",s:"WEAPON",baseCost:60,mods:{dmg:6,speed:-2}},
-    {n:"Hammer",s:"WEAPON",baseCost:70,mods:{dmg:8,speed:-4}},
-    {n:"Stab",s:"WEAPON",baseCost:30,mods:{dmg:2,maxMana:10}},
-    {n:"Robe",s:"ARMOR",baseCost:40,mods:{def:0,maxMana:10,manaRegen:0.2}},
-    {n:"Leder",s:"ARMOR",baseCost:60,mods:{def:1,dodgeChance:0.05}},
-    {n:"Platte",s:"ARMOR",baseCost:100,mods:{def:3,speed:-4,noise:5}},
-    {n:"Ring",s:"RELIC",baseCost:50,mods:{shopLuck:5}},
-    {n:"Amulett",s:"RELIC",baseCost:80,mods:{critChance:0.02}}
+    {n:["Dolch", "Kris", "Stilett", "Kurzschwert", "Kukri"],target:'ROGUE',s:"WEAPON",baseCost:20,mods:{dmg:2,speed:2}},
+    {n:["Schwert", "Säbel", "Langschwert", "Breitschwert"],target:'WARRIOR',s:"WEAPON",baseCost:40,mods:{dmg:4}},
+    {n:["Axt", "Beil", "Streitaxt", "Bartaxt"],target:'WARRIOR',s:"WEAPON",baseCost:60,mods:{dmg:6,speed:-2}},
+    {n:["Hammer", "Streitkolben", "Morgenstern", "Keule"],target:'WARRIOR',s:"WEAPON",baseCost:70,mods:{dmg:8,speed:-4}},
+    {n:["Stab", "Zepter", "Zauberstab", "Rute", "Knochenstab"],target:'MAGE',s:"WEAPON",baseCost:30,mods:{dmg:2,maxMana:10}},
+    {n:["Spitzhacke", "Hacke", "Pickel"],target:'ALL',s:"WEAPON",baseCost:30,mods:{dmg:1,mine:4,speed:-1}},
+    {n:["Robe"],target:'MAGE',s:"ARMOR",baseCost:40,mods:{def:0,maxMana:10,manaRegen:0.2}},
+    {n:["Leder"],target:'ROGUE',s:"ARMOR",baseCost:60,mods:{def:1,dodgeChance:0.05}},
+    {n:["Platte"],target:'WARRIOR',s:"ARMOR",baseCost:100,mods:{def:3,speed:-4,noise:5}},
+    {n:["Ring"],target:'ALL',s:"RELIC",baseCost:50,mods:{shopLuck:5}},
+    {n:["Amulett"],target:'ALL',s:"RELIC",baseCost:80,mods:{critChance:0.02}}
 ];
 const I_SUFFIX = [{n:"des Blutes",stat:"lifesteal",v:0.05},{n:"des Windes",stat:"dodgeChance",v:0.05},{n:"des Zorns",stat:"critChance",v:0.05},{n:"der Gier",stat:"lootMul",v:0.2},{n:"des Lichts",stat:"torchRadius",v:30},{n:"der Zeit",stat:"glitchMod",v:5}];
 const R_NAMES = ["Abgenutzt", "Alt", "Solide", "Raffiniert", "Edel", "Meisterhaft", "Königlich", "Mystisch", "Legendär", "Göttlich", "EWIG"];
@@ -413,7 +414,7 @@ function enterDungeon(clsKey) {
   meta.dmg = 1; // Base dmg
   
   // Starting Item
-  let startItem = {id:Math.random(), name:'Start '+c.item, slot:'WEAPON', col:'#aaa', mods:{dmg:2}};
+  let startItem = {id:Math.random(), name:'Start '+c.item, target:clsKey, slot:'WEAPON', col:'#aaa', mods:{dmg:2}};
   if(clsKey==='MAGE') startItem.mods={dmg:1, maxMana:5}; // Staff logic
   if(clsKey==='ROGUE') startItem.mods={dmg:2, speed:2};
 
@@ -547,7 +548,7 @@ function movePlayer(dx, dy) {
       if(meta.stam<cost){addParticle(game.p.x,game.p.y,"MÜDE!",'#555');return false;}
       meta.stam-=cost;
       game.p.actNoise = 3; // Loud Mining
-      game.walls[k] -= meta.mine; 
+      game.walls[k] -= (game.stats.mine||meta.mine); 
       addParticle(nx, ny, "RISS", '#777');
       if(game.walls[k] <= 0) {
         sfx('step'); game.map[ny][nx]=0; delete game.walls[k];
@@ -1022,7 +1023,8 @@ function genItem(lvl){
     let type=I_TYPES[rnd(0,I_TYPES.length-1)];
     let item={
         id:Math.random(),
-        name:`${rar.name} ${mat.n} ${type.n}`,
+        name:rar.name+" "+type.n[rnd(0,type.n.length-1)],
+        target:type.target,
         slot:type.s,
         col:mat.c,
         rarityCol: rar.col,
@@ -1058,15 +1060,14 @@ function calcStats(){
 
     // Weapon Proficiency Bonus
     let w = game.equipment.WEAPON;
-    if(w) {
-        let n = w.name;
-        if(meta.class==='WARRIOR' && (n.includes('Schwert') || n.includes('Axt') || n.includes('Hammer'))) {
+    if(w && meta.class === w.target) {
+        if(meta.class==='WARRIOR') {
             game.stats.def = (game.stats.def||0) + 1;
             game.stats.dmg = (game.stats.dmg||0) + 1;
-        } else if(meta.class==='ROGUE' && n.includes('Dolch')) {
+        } else if(meta.class==='ROGUE') {
             game.stats.critChance = (game.stats.critChance||0) + 0.05;
             game.stats.speed = (game.stats.speed||0) + 2;
-        } else if(meta.class==='MAGE' && n.includes('Stab')) {
+        } else if(meta.class==='MAGE') {
             game.stats.manaRegen = (game.stats.manaRegen||0) + 0.5;
         }
     }
@@ -1291,12 +1292,10 @@ function renderInv(){
 function renderMods(it){
     let bonus = '';
     // Check Class Bonus
-    if(meta.class==='WARRIOR' && (it.name.includes('Schwert') || it.name.includes('Axt') || it.name.includes('Hammer'))) {
-       bonus = '<br><span style="color:#0f0">KLASSEN-BONUS! (+1 DEF, +1 DMG)</span>';
-    } else if(meta.class==='ROGUE' && it.name.includes('Dolch')) {
-       bonus = '<br><span style="color:#0f0">KLASSEN-BONUS! (+5% CRIT, +2 SPD)</span>';
-    } else if(meta.class==='MAGE' && it.name.includes('Stab')) {
-       bonus = '<br><span style="color:#0f0">KLASSEN-BONUS! (+0.5 MANA REG)</span>';
+    if(meta.class === it.target) {
+       if(meta.class==='WARRIOR') bonus = '<br><span style="color:#0f0">KLASSEN-BONUS! (+1 DEF, +1 DMG)</span>';
+       else if(meta.class==='ROGUE') bonus = '<br><span style="color:#0f0">KLASSEN-BONUS! (+5% CRIT, +2 SPD)</span>';
+       else if(meta.class==='MAGE') bonus = '<br><span style="color:#0f0">KLASSEN-BONUS! (+0.5 MANA REG)</span>';
     }
     let modsHtml = Object.entries(it.mods).map(([k,v])=>{
         let col = (v >= 0) ? '#0f0' : '#f00';
