@@ -455,7 +455,7 @@ function startLevel(lvl) {
   // Colors
   C.WALL=B.c[0]; C.FLOOR=B.c[1]; C.PL=B.c[3];
 
-  game.p.hasKey=false; game.p.hidden=false; game.timers.glitch=15+(game.stats.glitchMod||0); game.glitchCount=0; game.timers.stun=0;
+  game.p.hasKey=false; game.p.hidden=false; game.timers={glitch:15+(game.stats.glitchMod||0),stun:0,shake:0,poison:0,burn:0}; game.glitchCount=0;
   game.enemies=[]; game.items=[]; game.particles=[]; game.torches=[]; game.walls={};
   
   meta.hp = Math.min(meta.hp, game.stats.maxHp); if(meta.hp<=0)meta.hp=game.stats.maxHp;
@@ -1302,7 +1302,9 @@ function inv_action(i){
 function inv_unequip(s){let it=game.equipment[s];if(!it)return;if(game.inventory.length<10){game.equipment[s]=null;game.inventory.push(it);sfx('shop');calcStats();renderInv();}else sfx('hit');}
 function sfx(id){if(!actx)return;const t=actx.currentTime,o=actx.createOscillator(),g=actx.createGain();o.connect(g);g.connect(actx.destination);if(id==='step'){o.type='triangle';o.frequency.setValueAtTime(50,t);o.frequency.exponentialRampToValueAtTime(10,t+0.1);g.gain.setValueAtTime(0.1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.1);o.start(t);o.stop(t+0.1);}else if(id==='attack'){o.type='sawtooth';o.frequency.setValueAtTime(100,t);o.frequency.linearRampToValueAtTime(50,t+0.1);g.gain.setValueAtTime(0.1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.1);o.start(t);o.stop(t+0.1);}else if(id==='hit'){o.type='sawtooth';o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(10,t+0.3);g.gain.setValueAtTime(0.2,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.3);o.start(t);o.stop(t+0.3);}else if(id==='kill'){o.type='sine';o.frequency.setValueAtTime(440,t);o.frequency.exponentialRampToValueAtTime(880,t+0.2);g.gain.setValueAtTime(0.1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.4);o.start(t);o.stop(t+0.4);}else if(id==='shop'){o.type='triangle';o.frequency.setValueAtTime(600,t);g.gain.setValueAtTime(0.05,t);g.gain.exponentialRampToValueAtTime(0.001,t+1.0);o.start(t);o.stop(t+1.0);}else if(id==='glitch'){o.type='sawtooth';o.frequency.setValueAtTime(Math.random()*200+50,t);o.frequency.linearRampToValueAtTime(Math.random()*200+50,t+0.2);g.gain.setValueAtTime(0.1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.2);o.start(t);o.stop(t+0.2);}}
 window.addEventListener('keydown',e=>{if(!actx&&document.getElementById('game-wrapper').style.display!=='none'){actx=new(window.AudioContext||window.webkitAudioContext)();actx.resume();}if(game.timers.shake>0)return;if(game.mode==='GAME')inputGame(e);else if(game.mode==='SHOP')inputShop(e);});
-function inputShop(e){if(e.key==='i'){inv_toggle();return;}if(e.key==='r'){respawn();return;}if(e.key==='l'){game.lockMode=!game.lockMode;return;}if(e.key===' '){if(meta.bits>=game.rerollCost){sfx('shop');meta.bits-=game.rerollCost;game.rerollCost*=3;meta.lockedItems=game.shopItems.filter(i=>i.locked&&!i.purchased).map(i=>({itemName:i.item.name,tierName:i.tier.name,cost:i.cost}));generateShop();save();updateUI();}else game.timers.shake=5;return;}let k=parseInt(e.key);if(k>0&&k<=game.shopItems.length){let o=game.shopItems[k-1];if(game.lockMode){if(o.purchased)return;if(o.locked)o.locked=false;else{let c=Math.max(1,(o.cost*0.1)|0);if(meta.bits>=c){sfx('step');meta.bits-=c;o.locked=true;addParticle(CVS.width/2,CVS.height/2,"GESPERRT",'#fff');}else game.timers.shake=5;}}else if(!o.purchased){if(meta.bits>=o.cost){sfx('shop');meta.bits-=o.cost;o.purchased=true;o.locked=false;let v=o.item.calc(o.tier);o.item.run(meta,v);let txt=o.item.unit==='%'?`+${Math.round(v*100)}%`:`+${v} ${o.item.unit}`;addParticle(CVS.width/2,CVS.height/2,txt,o.tier.col==='RAINBOW'?'#fff':o.tier.col);game.timers.shake=3;save();}else game.timers.shake=5;}updateUI();}}
+function inputShop(e){if(e.key==='i'){inv_toggle();return;}if(e.key==='r'){respawn();return;}if(e.key==='l'){game.lockMode=!game.lockMode;return;}if(e.key===' ')shopReroll();let k=parseInt(e.key);if(k>0&&k<=game.shopItems.length)shopAction(k-1);}
+function shopReroll(){if(meta.bits>=game.rerollCost){sfx('shop');meta.bits-=game.rerollCost;game.rerollCost*=3;meta.lockedItems=game.shopItems.filter(i=>i.locked&&!i.purchased).map(i=>({itemName:i.item.name,tierName:i.tier.name,cost:i.cost}));generateShop();save();updateUI();}else game.timers.shake=5;}
+function shopAction(i){let o=game.shopItems[i];if(game.lockMode){if(o.purchased)return;if(o.locked)o.locked=false;else{let c=Math.max(1,(o.cost*0.1)|0);if(meta.bits>=c){sfx('step');meta.bits-=c;o.locked=true;addParticle(320,320,"GESPERRT",'#fff');}else game.timers.shake=5;}}else if(!o.purchased){if(meta.bits>=o.cost){sfx('shop');meta.bits-=o.cost;o.purchased=true;o.locked=false;let v=o.item.calc(o.tier);o.item.run(meta,v);let txt=o.item.unit==='%'?`+${Math.round(v*100)}%`:`+${v} ${o.item.unit}`;addParticle(320,320,txt,o.tier.col==='RAINBOW'?'#fff':o.tier.col);game.timers.shake=3;save();}else game.timers.shake=5;}updateUI();}
 function inputGame(e){
     if(meta.hp<=0 || game.lockInput) return;
     let dx=0,dy=0,acted=false;
@@ -1338,6 +1340,7 @@ function endTurn(){game.p.energy-=100;processTurns();return true;}
 CVS.onclick = e => {
     if(!actx){actx=new(window.AudioContext||window.webkitAudioContext)();actx.resume();}
     let rect = CVS.getBoundingClientRect();
+    if(game.mode==='SHOP'){let s=640/rect.height,y=(e.clientY-rect.top)*s;if(y>530&&y<565)shopReroll();else if(y>=565)game.lockMode=!game.lockMode;else{let i=Math.floor((y-120)/40);if(i>=0&&i<game.shopItems.length)shopAction(i);}return;}
     let tx = ((e.clientX - rect.left) / (rect.width/GRID)) | 0;
     let ty = ((e.clientY - rect.top) / (rect.height/GRID)) | 0;
     if(game.aiming && meta.class==='MAGE') {
@@ -1393,23 +1396,32 @@ function stepTowards(tx,ty){
     movePlayer(dx,dy)&&endTurn();
 }
 
-document.onmousemove = e => {
-  let txt = e.target.dataset.t || '';
-  if(e.target.id==='cvs') {
-      let r = CVS.getBoundingClientRect(), s = r.width/GRID;
-      let x = (e.clientX - r.left)/s|0, y = (e.clientY - r.top)/s|0;
-      game.mouse = {x,y};
-      let t = game.enemies.find(e=>e.x===x && e.y===y);
-      let i = game.items.find(e=>e.x===x && e.y===y);
-      let w = game.walls[`${x},${y}`];
-      if(t) txt = `${t.name}\nHP:${t.hp}/${t.max} ATK:${t.dmg}`;
-      else if(i) txt = i.val ? `${i.val.name}\n${Object.keys(i.val.mods).join(',')}` : ['HP+','MANA+','GOLD','ROLLE'][i.type];
-      else if(w) txt = `Mauer (${(w|0)})`;
-      else if(x===game.key.x && y===game.key.y) txt='Schlüssel';
-      else if(x===game.exit.x && y===game.exit.y) txt=`Ausgang ${game.p.hasKey?'(Offen)':'(Zu)'}`;
+document.onmousemove=e=>{
+  let txt=e.target.dataset.t||'';
+  if(e.target.id==='cvs'){
+    let r=CVS.getBoundingClientRect(),s=640/r.height;
+    let mx=(e.clientX-r.left)*s,my=(e.clientY-r.top)*s;
+    if(game.mode==='SHOP'){
+      let i=Math.floor((my-115)/40),o=game.shopItems[i];
+      if(o){
+        if(o.purchased)txt="Bereits erworben";
+        else{
+          let v=o.item.calc(o.tier),eff=o.item.unit==='%'?`+${Math.round(v*100)}%`:`+${v} ${o.item.unit}`;
+          txt=`${o.item.name}\n${o.tier.name} | ${eff}`;
+        }
+      }
+    }else{
+      let x=(mx/TILE)|0,y=(my/TILE)|0;game.mouse={x,y};
+      let t=game.enemies.find(e=>e.x===x&&e.y===y),i=game.items.find(e=>e.x===x&&e.y===y),w=game.walls[`${x},${y}`];
+      if(t)txt=`${t.name}\nHP:${t.hp}/${t.max} ATK:${t.dmg}`;
+      else if(i)txt=i.val?`${i.val.name}\n${Object.keys(i.val.mods).join(',')}`:['HP+','MANA+','GOLD','ROLLE'][i.type];
+      else if(w)txt=`Mauer (${(w|0)})`;
+      else if(x===game.key.x&&y===game.key.y)txt='Schlüssel';
+      else if(x===game.exit.x&&y===game.exit.y)txt=`Ausgang ${game.p.hasKey?'(Offen)':'(Zu)'}`;
+    }
   }
-  let el = document.getElementById('tt');
-  if(txt) { el.style.display='block'; el.style.left=(e.clientX+15)+'px'; el.style.top=(e.clientY+15)+'px'; el.innerText=txt; }
+  let el=document.getElementById('tt');
+  if(txt){el.style.display='block';el.style.left=(e.clientX+15)+'px';el.style.top=(e.clientY+15)+'px';el.innerText=txt;}
   else el.style.display='none';
 };
 </script>
