@@ -350,6 +350,7 @@ const I_TYPES = [
 const I_SUFFIX = [{n:"des Blutes",stat:"lifesteal",v:0.05},{n:"des Windes",stat:"dodgeChance",v:0.05},{n:"des Zorns",stat:"critChance",v:0.05},{n:"der Gier",stat:"lootMul",v:0.2},{n:"des Lichts",stat:"torchRadius",v:30},{n:"der Zeit",stat:"glitchMod",v:5}];
 const R_NAMES = ["Rostig","Alt","Geschmiedet","Gehärtet","Edel","Meisterhaft","Königlich","Verflucht","Dämonisch","Göttlich","EWIG"];
 const RARITIES = R_NAMES.map((n,i) => ({name:n, mul:1+i*0.8, chance:Math.max(0.1,50/Math.pow(2,i)), col:i===R_NAMES.length-1?'RAINBOW':`hsl(${40},${20+(i/10)*80}%,${50+i*2}%)`}));
+const T_NAMES = ["Grundlagen", "Anfänger", "Fortgeschritten", "Geübt", "Profi", "Veteran", "Experte", "Meister", "Großmeister", "Legende", "Transzendent"];
 
 const ITEM_POOL = [
   {name:'Heiltrank',vis:'POTION',baseCost:10,unit:'HP',calc:t=>(5*t.mul)|0,run:(m,v)=>m.hp=Math.min(m.hp+v,game.stats.maxHp)},
@@ -364,11 +365,18 @@ const ITEM_POOL = [
   {name:'Gier',vis:'CHEST',baseCost:70,unit:'%',calc:t=>parseFloat((0.1*t.mul).toFixed(1)),run:(m,v)=>{m.lootMul+=v;calcStats()}},
   {name:'Bannkreis',vis:'RELIC',baseCost:50,unit:'ROLLE',calc:t=>Math.max(1,1*t.mul|0),run:(m,v)=>m.scrolls=(m.scrolls||0)+v},
   {name:'Fackelschein',vis:'RELIC',baseCost:40,unit:'LUMEN',calc:t=>(30*t.mul)|0,run:(m,v)=>{m.torchRadius=(m.torchRadius||150)+v;calcStats()}},
-  {name:'Lichtbringer',vis:'RELIC',baseCost:80,unit:'FACKEL',calc:t=>Math.max(1,1*t.mul|0),run:(m,v)=>{m.torchCount=(m.torchCount||2)+v;calcStats()}}
+  {name:'Lichtbringer',vis:'RELIC',baseCost:80,unit:'FACKEL',calc:t=>Math.max(1,1*t.mul|0),run:(m,v)=>{m.torchCount=(m.torchCount||2)+v;calcStats()}},
+  
+  // Neue Training-Items (Books)
+  {name:'Abhärtung',vis:'BOOK',baseCost:120,unit:'DEF',calc:t=>parseFloat((t.mul*0.2).toFixed(1)),run:(m,v)=>{m.def=(m.def||0)+v;calcStats()}},
+  {name:'Stille',vis:'BOOK',baseCost:100,unit:'NOISE',calc:t=>Math.ceil(t.mul*0.5),run:(m,v)=>{m.noise=Math.max(0,m.noise-v);calcStats()}},
+  {name:'Kondition',vis:'BOOK',baseCost:90,unit:'REG',calc:t=>parseFloat((t.mul*0.1).toFixed(2)),run:(m,v)=>{m.stamRegen=(m.stamRegen||1)+v;calcStats()}},
+  {name:'Meditation',vis:'BOOK',baseCost:90,unit:'REG',calc:t=>parseFloat((t.mul*0.1).toFixed(2)),run:(m,v)=>{m.manaRegen=(m.manaRegen||0)+v;calcStats()}},
+  {name:'Bergbau',vis:'BOOK',baseCost:80,unit:'PWR',calc:t=>Math.floor(t.mul*0.5),run:(m,v)=>{m.mine+=v;calcStats()}}
 ];
 
 // --- STATE ---
-let meta = { bits:0, hp:10, maxHp:10, mana:10, maxMana:10, stam:10, maxStam:10, dmg:1, mine:1, noise:5, speed:10, def:0, manaRegen:0, class:'WARRIOR', critChance:0.05, dodgeChance:0.05, lootMul:1.0, glitchMod:0, scrolls:0, torchCount:2, torchRadius:150, maxLvl:1, shopSlots:3, shopLuck:0, lockedItems:[] };
+let meta = { bits:0, hp:10, maxHp:10, mana:10, maxMana:10, stam:10, maxStam:10, dmg:1, mine:1, noise:5, speed:10, def:0, manaRegen:0, stamRegen:1, class:'WARRIOR', critChance:0.05, dodgeChance:0.05, lootMul:1.0, glitchMod:0, scrolls:0, torchCount:2, torchRadius:150, maxLvl:1, shopSlots:3, shopLuck:0, lockedItems:[] };
 // Note: We don't load everything from save for class/stats reset on run start, but we keep meta progression (bits, maxLvl, etc if we had any rogue-lite elements, but current code resets hp on reincarnate).
 // Actually, let's keep it simple: meta is "run state".
 if(localStorage.getItem('GD4_Dark_Save')) {
@@ -420,7 +428,7 @@ function initGame(startItem) {
 function startLevel(lvl) {
   document.getElementById('btn-reincarnate').style.display='none';
   if(lvl > game.level) { // Level complete
-      meta.mana = Math.min(meta.maxMana, meta.mana + Math.floor(meta.maxMana/3));
+      meta.mana = Math.min(game.stats.maxMana, meta.mana + Math.floor(game.stats.maxMana/3));
       addParticle(game.p.x||0, game.p.y||0, "MANA +", '#0af');
   }
   game.level=lvl;
@@ -443,7 +451,7 @@ function startLevel(lvl) {
   game.p.hasKey=false; game.p.hidden=false; game.timers.glitch=25+meta.glitchMod; game.timers.stun=0;
   game.enemies=[]; game.items=[]; game.particles=[]; game.torches=[]; game.walls={};
   
-  meta.hp = Math.min(meta.hp, meta.maxHp); if(meta.hp<=0)meta.hp=meta.maxHp;
+  meta.hp = Math.min(meta.hp, game.stats.maxHp); if(meta.hp<=0)meta.hp=game.stats.maxHp;
 
   // Gen Map
   game.map = [];
@@ -471,7 +479,7 @@ function spawnActors() {
   
   // Player Init
   game.p.energy = 100; game.p.actNoise = 0; // Starts quiet
-  meta.mana = meta.maxMana; // Reset Mana on level start
+  meta.mana = game.stats.maxMana; // Reset Mana on level start
   game.lockInput = false;
 
   // Enemies
@@ -607,11 +615,11 @@ function processTurns() {
                    sfx('hit');
                }
             } else {
-               meta.stam = Math.min(meta.maxStam, meta.stam + 1); // Stamina regen
+               meta.stam = Math.min(game.stats.maxStam, meta.stam + (game.stats.stamRegen||1)); // Stamina regen
             }
             // Mana Regen
-            if(game.stats.manaRegen > 0 && meta.mana < meta.maxMana) {
-                meta.mana = Math.min(meta.maxMana, meta.mana + game.stats.manaRegen);
+            if(game.stats.manaRegen > 0 && meta.mana < game.stats.maxMana) {
+                meta.mana = Math.min(game.stats.maxMana, meta.mana + game.stats.manaRegen);
             }
 
             turnLogic(); // Update Game World / UI once per player turn roughly
@@ -705,7 +713,10 @@ function turnLogic() {
 
   // Global Glitch Timer
   if(game.timers.burn>0){game.timers.burn--;if(game.timers.burn%2===0){meta.hp-=1;addParticle(game.p.x,game.p.y,"FEUER",'#f40');}}
-  if(game.timers.poison>0)game.timers.poison--;
+  if(game.timers.poison>0){
+      game.timers.poison--;
+      if(game.timers.poison%5===0){meta.hp-=1;addParticle(game.p.x,game.p.y,"GIFT",'#0f0');}
+  }
 
   game.timers.glitch--;
   if(game.timers.glitch<=0) {
@@ -919,6 +930,10 @@ function drawSprite(ctx,x,y,seed,type,col){
                 else if(type==='POTION'){if(i<3&&j>2&&j<7)d=true;if(i===1&&j<3){d=true;c='#eee';}if(j===3)c='#eee';}
                 else if(type==='KEY'){if(i===3&&j>1)d=true;if(j===1&&i>1)d=true;if(j===6&&i>1)d=true;}
                 else if(type==='CHEST'){if(j>2&&j<7&&i<4)d=true;if(j===2&&i<3){d=true;c='#aaa';}if(i===0&&j>2)c='#aaa';}
+                else if(type==='BOOK'){ // Training Book
+                    if(j>1&&j<7&&i<3)d=true; // Cover
+                    if(i===3&&j>1&&j<7){d=true;c='#fff';} // Pages
+                }
                 if(d){ctx.fillStyle=c;ctx.fillRect(i*px,j*px,px,px);if(sym)ctx.fillRect((7-i)*px,j*px,px,px);}
             }
         }
@@ -939,8 +954,20 @@ function drawShop(){
             drawSprite(CTX,30,y-25,o.idx*123,o.item.vis||'POTION',col);CTX.fillStyle=col;
             let pre=(meta.bits>=o.cost)?`[${o.idx}]`:` X `;if(o.locked)pre=`[L]`;
             let v=o.item.calc(o.tier),vTxt=o.item.unit==='%'?`+${Math.round(v*100)}%`:`+${v} ${o.item.unit}`;
-            CTX.font="bold 18px serif";CTX.fillText(`${pre} ${o.item.name} [${vTxt}]`,80,y);
-            CTX.font="italic 14px serif";CTX.fillText(o.tier.name,400,y);
+            
+            // Name Weiche
+            let dispName = `${pre} ${o.item.name} [${vTxt}]`;
+            let tierName = o.tier.name;
+            if(o.item.vis === 'BOOK') {
+                let rIdx = RARITIES.indexOf(o.tier);
+                let tName = T_NAMES[rIdx] || "Unbekannt";
+                dispName = `${pre} ${o.item.name} (${tName}) [${vTxt}]`;
+                tierName = ""; // Hide Rarity Name if mapped
+            }
+
+            CTX.font="bold 18px serif";CTX.fillText(dispName,80,y);
+            if(tierName) { CTX.font="italic 14px serif";CTX.fillText(tierName,480,y); }
+            
             let dCost=game.lockMode?(o.locked?0:Math.max(1,(o.cost*0.1)|0)):o.cost;
             CTX.fillStyle=(meta.bits>=dCost)?'#ffd700':'#555';CTX.textAlign="right";CTX.fillText(game.lockMode&&o.locked?"LÖSEN":`${dCost}`,580,y);CTX.textAlign="left";
         } y+=40;
@@ -1022,9 +1049,9 @@ function updateUI(){
     document.getElementById('ui-scrolls').innerText=meta.scrolls||0;
     document.getElementById('ui-key').innerText=game.p.hasKey?"[SCHLÜSSEL]":"";
     
-    document.getElementById('ui-mana').innerText=Math.floor(meta.mana)+"/"+meta.maxMana;
+    document.getElementById('ui-mana').innerText=Math.floor(meta.mana)+"/"+game.stats.maxMana;
     let sEl = document.getElementById('ui-stam');
-    sEl.innerText=Math.floor(meta.stam)+"/"+meta.maxStam;
+    sEl.innerText=Math.floor(meta.stam)+"/"+game.stats.maxStam;
     if(meta.stam<3 || (game.p.hidden && meta.stam<5)) sEl.classList.add('stam-low'); else sEl.classList.remove('stam-low');
 
     document.getElementById('ui-class').innerText=CLASSES[meta.class].n;
