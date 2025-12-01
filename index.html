@@ -34,7 +34,7 @@
         .stat-row { width: 100%; display: flex; justify-content: space-between; margin-top: 5px; font-size: 0.8em; }
         canvas { border: 4px solid #1f1f1f; background: #000; image-rendering: pixelated; box-shadow: 0 0 30px rgba(0, 0, 0, 0.8); }
         #ui-target { width: 640px; text-align: center; font-family: var(--font-display); font-size: 16px; margin-bottom: 5px; min-height: 20px; }
-        #btn-reincarnate { position: absolute; top: 580px; left: 50%; transform: translateX(-50%); display: none; z-index: 20; background: #000; color: #8a0b0b; border: 1px solid #8a0b0b; padding: 10px 20px; font-family: var(--font-display); font-size: 1.2rem; cursor: pointer; box-shadow: 0 0 10px #8a0b0b; }
+        #btn-reincarnate { display: block; background: #000; color: #8a0b0b; border: 1px solid #8a0b0b; padding: 8px 16px; font-family: var(--font-display); font-size: 1.1rem; cursor: pointer; box-shadow: 0 0 10px #8a0b0b; margin-top: 5px; pointer-events: auto; }
         #btn-reincarnate:hover { background: #8a0b0b; color: #000; }
         @keyframes pulse { 0%, 100% { text-shadow: 2px 2px 0px #000, 0 0 20px var(--accent-color); } 50% { text-shadow: 2px 2px 0px #000, 0 0 10px var(--accent-color); opacity: 0.9; } }
         @keyframes unstable { 0% { transform: translate(0,0); } 20% { transform: translate(-1px, 1px); } 40% { transform: translate(1px, -1px); } 60% { transform: translate(-1px, 0); } 80% { transform: translate(1px, 1px); } 100% { transform: translate(0,0); } }
@@ -102,7 +102,18 @@
         </div>
     </div>
     <div id="ui-target">ZIEL: [Keines]</div>
-    <canvas id="cvs" width="640" height="640"></canvas>
+    <div style="position:relative; width:640px; height:640px; box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);">
+        <canvas id="cvs" width="640" height="640" style="display:block;"></canvas>
+        <div id="shop-ui" style="display:none; position:absolute; inset:0; flex-direction:column; justify-content:flex-end; padding-bottom:10px; pointer-events:none; z-index:20;">
+            <div id="shop-footer" style="display:flex; flex-direction:column; align-items:center; background:rgba(0,0,0,0.95); padding:10px; border-top:1px solid #8a0b0b; pointer-events:auto; width:100%; box-sizing:border-box;">
+                <div id="lvl-select" style="display:none; text-align:center; width:100%; margin-bottom:2px;">
+                    <label style="color:#c5a059; font-family:var(--font-display); text-shadow:0 0 5px #000; font-size:0.9rem;">START: TIEFE <span id="lvl-val">1</span></label><br>
+                    <input type="range" id="lvl-slider" min="1" max="1" value="1" oninput="document.getElementById('lvl-val').innerText=this.value" style="margin:5px 0;">
+                </div>
+                <button id="btn-reincarnate" onclick="respawn()">Reinkarnation</button>
+            </div>
+        </div>
+    </div>
     <div id="hud">
         <div id="dpad">
             <button style="grid-area:u" onclick="act('U')" data-t="Hoch">▲</button>
@@ -119,11 +130,6 @@
             <button onclick="act('HELP')" data-t="Hilfe">?</button>
         </div>
     </div>
-    <div id="lvl-select" style="display:none; position:absolute; top:510px; left:50%; transform:translateX(-50%); text-align:center; width:300px; z-index:20;">
-        <label style="color:#c5a059; font-family:var(--font-display); text-shadow:0 0 5px #000;">START: TIEFE <span id="lvl-val">1</span></label><br>
-        <input type="range" id="lvl-slider" min="1" max="1" value="1" oninput="document.getElementById('lvl-val').innerText=this.value">
-    </div>
-    <button id="btn-reincarnate" onclick="respawn()">Reinkarnation</button>
     <div id="level-announcement"></div>
     <div id="tt"></div>
 </div>
@@ -224,7 +230,7 @@ function enterDungeon(k){
 }
 function initGame(s){game.inventory=[];game.equipment={WEAPON:s||null,ARMOR:null,RELIC:null};calcStats();startLevel(1);requestAnimationFrame(loop);}
 function startLevel(lvl){
- $('btn-reincarnate').style.display='none';
+ $('shop-ui').style.display='none';
  if(lvl>game.level){meta.mana=Math.min(game.stats.maxMana,meta.mana+(game.stats.maxMana/3)|0);addParticle(game.p.x,game.p.y,"MANA +",'#0af');}
  game.level=lvl;if(lvl>meta.maxLvl){meta.maxLvl=lvl;save();}
  game.biome=(Math.floor((lvl-1)/5))%BIOMES.length;let B=BIOMES[game.biome];
@@ -426,8 +432,9 @@ function drawSprite(ctx,x,y,seed,type,col){
  ctx.restore();
 }
 function drawShop(){
- CTX.fillStyle='#050505';CTX.fillRect(0,0,640,640);CTX.textAlign="center";CTX.fillStyle=game.lockMode?'#555':'#8a0b0b';CTX.font="bold 30px serif";CTX.fillText("/// SCHATTENHÄNDLER ///",320,50);CTX.fillStyle='#c5a059';CTX.font="18px serif";CTX.fillText(`GOLD: ${meta.bits} | TIEFE: ${meta.maxLvl}`,320,80);CTX.fillText(game.lockMode?"-- SPERRE AKTIV --":"[L] AUSWAHL SPERREN",320,580);CTX.fillStyle='#888';CTX.fillText(`HP:${meta.hp}/${meta.maxHp} DMG:${meta.dmg} KRIT:${Math.round(meta.critChance*100)}% GLÜCK:${meta.shopLuck}`,320,105);CTX.textAlign="left";let y=140;
+ CTX.fillStyle='#050505';CTX.fillRect(0,0,640,640);CTX.textAlign="center";CTX.fillStyle=game.lockMode?'#555':'#8a0b0b';CTX.font="bold 30px serif";CTX.fillText("/// SCHATTENHÄNDLER ///",320,50);CTX.fillStyle='#c5a059';CTX.font="18px serif";CTX.fillText(`GOLD: ${meta.bits} | TIEFE: ${meta.maxLvl}`,320,80);CTX.fillText(game.lockMode?"-- SPERRE AKTIV --":"[L] AUSWAHL SPERREN",320,510);CTX.fillStyle='#888';CTX.fillText(`HP:${meta.hp}/${meta.maxHp} DMG:${meta.dmg} KRIT:${Math.round(meta.critChance*100)}% GLÜCK:${meta.shopLuck}`,320,105);CTX.textAlign="left";let y=140;
  game.shopItems.forEach(o=>{
+  if(y>460)return;
   let col=o.tier.col==='RAINBOW'?`hsl(${Date.now()/5%360},100%,50%)`:o.tier.col;
   if(o.purchased){CTX.fillStyle='#333';CTX.fillText(`[${o.idx}] -- LEER --`,80,y);}else{
    drawSprite(CTX,30,y-25,o.idx*123,o.item.vis||'POTION',col);CTX.fillStyle=col;
@@ -437,7 +444,7 @@ function drawShop(){
    let dCost=game.lockMode?(o.locked?0:Math.max(1,(o.cost*0.1)|0)):o.cost;CTX.fillStyle=(meta.bits>=dCost)?'#ffd700':'#555';CTX.textAlign="right";CTX.fillText(game.lockMode&&o.locked?"LÖSEN":`${dCost}`,580,y);CTX.textAlign="left";
   }y+=40;
  });
- CTX.textAlign="center";CTX.fillStyle=(meta.bits>=game.rerollCost)?'#c5a059':'#555';CTX.fillText(`[SPACE] ANGEBOT TAUSCHEN (${game.rerollCost})`,320,550);
+ CTX.textAlign="center";CTX.fillStyle=(meta.bits>=game.rerollCost)?'#c5a059':'#555';CTX.fillText(`[SPACE] ANGEBOT TAUSCHEN (${game.rerollCost})`,320,480);
 }
 function rnd(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
 function addParticle(x,y,txt,col,spd=1){game.particles.push({x:x*TILE+16,y:y*TILE,txt,col,life:60,speed:0.5*spd});}
@@ -456,7 +463,7 @@ function calcStats(){
 }
 function save(){localStorage.setItem('GD4_Dark_Save',JSON.stringify(meta));}
 function delSave(){if(confirm('Alles löschen?')){localStorage.removeItem('GD4_Dark_Save');location.reload();}}
-function triggerGameOver(){game.mode='SHOP';game.rerollCost=10;generateShop();$('btn-reincarnate').style.display='block';if(meta.maxLvl>1){$('lvl-select').style.display='block';$('lvl-slider').max=meta.maxLvl;$('lvl-slider').value=1;$('lvl-val').innerText=1;}save();}
+function triggerGameOver(){game.mode='SHOP';game.rerollCost=10;generateShop();$('shop-ui').style.display='flex';if(meta.maxLvl>1){$('lvl-select').style.display='block';$('lvl-slider').max=meta.maxLvl;$('lvl-slider').value=1;$('lvl-val').innerText=1;}save();}
 function generateShop(){game.shopItems=[];let slots=meta.shopSlots;if(meta.lockedItems&&meta.lockedItems.length>0){meta.lockedItems.forEach(li=>{if(game.shopItems.length<slots){let base=ITEM_POOL.find(i=>i.name===li.itemName),tier=R_MAP[li.tierName];if(base&&tier)game.shopItems.push({idx:game.shopItems.length+1,item:base,tier,cost:li.cost,purchased:false,locked:true});}});meta.lockedItems=[];}while(game.shopItems.length<slots){let base=ITEM_POOL[rnd(0,ITEM_POOL.length-1)],roll=Math.random()*100-meta.shopLuck,rIndex=0;for(let i=RARITIES.length-1;i>=0;i--)if(roll<RARITIES[i].chance){rIndex=i;break;}let tier=RARITIES[rIndex],cost=Math.floor(base.baseCost*tier.mul);game.shopItems.push({idx:game.shopItems.length+1,item:base,tier,cost,purchased:false,locked:false});}}
 function respawn(){meta.hp=meta.maxHp;meta.stam=meta.maxStam;meta.mana=meta.maxMana;meta.lockedItems=game.shopItems.filter(i=>i.locked&&!i.purchased).map(i=>({itemName:i.item.name,tierName:i.tier.name,cost:i.cost}));game.mode='GAME';let sl=parseInt($('lvl-slider').value)||1;$('lvl-select').style.display='none';startLevel(sl);}
 function isBlocked(x,y){if(game.map[y][x]===1)return true;if(game.enemies.some(e=>e.x===x&&e.y===y))return true;return false;}
@@ -516,7 +523,7 @@ function shopAction(i){let o=game.shopItems[i];if(game.lockMode){if(o.purchased)
 function inputGame(e){if(meta.hp<=0||game.lockInput)return;let dx=0,dy=0,acted=false;if(e.key==='i'){inv_toggle();return;}if(e.key.match(/w|ArrowUp/))dy=-1;else if(e.key.match(/s|ArrowDown/))dy=1;else if(e.key.match(/a|ArrowLeft/))dx=-1;else if(e.key.match(/d|ArrowRight/))dx=1;else if(e.key===' '){game.p.actNoise=0;acted=true;}else if(e.key.toLowerCase()==='b'){useSkill();return;}else if(e.key.toLowerCase()==='f'){useConsumable();return;}else return;if(dx!==0||dy!==0)acted=movePlayer(dx,dy);if(acted)endTurn();}
 function act(c){au();if(game.aiming&&c!=='SKILL'){game.aiming=false;updateUI();}if(c==='U')movePlayer(0,-1)&&endTurn();if(c==='D')movePlayer(0,1)&&endTurn();if(c==='L')movePlayer(-1,0)&&endTurn();if(c==='R')movePlayer(1,0)&&endTurn();if(c==='WAIT'){game.p.actNoise=0;endTurn();}if(c==='SKILL')useSkill();if(c==='ITEM')useConsumable();if(c==='INV')inv_toggle();if(c==='HELP')alert('WASD/Pfeile: Move\nSPACE: Wait\nB: Skill\nF: Item\nI: Inv');if(c==='ATK'){let d=game.p.dir;movePlayer(d.x,d.y)&&endTurn();}}
 function endTurn(){game.p.energy-=100;processTurns();return true;}
-CVS.onclick=e=>{au();let rect=CVS.getBoundingClientRect();if(game.mode==='SHOP'){let s=640/rect.height,y=(e.clientY-rect.top)*s;if(y>530&&y<565)shopReroll();else if(y>=565)game.lockMode=!game.lockMode;else{let i=Math.floor((y-120)/40);if(i>=0&&i<game.shopItems.length)shopAction(i);}return;}let tx=((e.clientX-rect.left)/(rect.width/GRID))|0,ty=((e.clientY-rect.top)/(rect.height/GRID))|0;if(game.aiming&&meta.class==='MAGE'){castFireball(tx,ty);return;}let t=game.enemies.find(en=>en.x===tx&&en.y===ty);if(t){let dx=tx-game.p.x,dy=ty-game.p.y;if(Math.abs(dx)+Math.abs(dy)===1){movePlayer(dx,dy)&&endTurn();}else stepTowards(tx,ty);}else stepTowards(tx,ty);};
+CVS.onclick=e=>{au();let rect=CVS.getBoundingClientRect();if(game.mode==='SHOP'){let s=640/rect.height,y=(e.clientY-rect.top)*s;if(y>465&&y<495)shopReroll();else if(y>=495&&y<525)game.lockMode=!game.lockMode;else{let i=Math.floor((y-120)/40);if(i>=0&&i<game.shopItems.length)shopAction(i);}return;}let tx=((e.clientX-rect.left)/(rect.width/GRID))|0,ty=((e.clientY-rect.top)/(rect.height/GRID))|0;if(game.aiming&&meta.class==='MAGE'){castFireball(tx,ty);return;}let t=game.enemies.find(en=>en.x===tx&&en.y===ty);if(t){let dx=tx-game.p.x,dy=ty-game.p.y;if(Math.abs(dx)+Math.abs(dy)===1){movePlayer(dx,dy)&&endTurn();}else stepTowards(tx,ty);}else stepTowards(tx,ty);};
 function castFireball(tx,ty){if(meta.mana<5){addParticle(game.p.x,game.p.y,"KEIN MANA",'#0af');game.aiming=false;updateUI();return;}if(!hasLOS(game.p.x,game.p.y,tx,ty)){addParticle(tx,ty,"BLOCKIERT",'#f00');return;}meta.mana-=5;sfx('glitch');game.aiming=false;updateUI();let t=game.enemies.find(e=>e.x===tx&&e.y===ty);if(t){hurt(t,game.stats.dmg*2,false);if(t.hp>0)t.state='HUNT';}else addParticle(tx,ty,"BOOM!",'#f60');for(let sy=-1;sy<=1;sy++)for(let sx=-1;sx<=1;sx++){if(sx===0&&sy===0)continue;let st=game.enemies.find(e=>e.x===tx+sx&&e.y===ty+sy);if(st){hurt(st,Math.floor(game.stats.dmg),false,`SPLASH -${Math.floor(game.stats.dmg)}`,'#f60');}}game.p.energy-=100;processTurns();}
 function hasLOS(x0,y0,x1,y1){let dx=Math.abs(x1-x0),dy=Math.abs(y1-y0),sx=(x0<x1)?1:-1,sy=(y0<y1)?1:-1,err=dx-dy;while(true){if(x0===x1&&y0===y1)return true;if(game.map[y0][x0]===1)return false;let e2=2*err;if(e2>-dy){err-=dy;x0+=sx;}if(e2<dx){err+=dx;y0+=sy;}}}
 function stepTowards(tx,ty){let dx=Math.sign(tx-game.p.x),dy=Math.sign(ty-game.p.y);if(dx!==0&&dy!==0){if(Math.abs(tx-game.p.x)>Math.abs(ty-game.p.y))dy=0;else dx=0;}movePlayer(dx,dy)&&endTurn();}
