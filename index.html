@@ -72,15 +72,40 @@
         #level-announcement { position: absolute; top: 150px; left: 50%; transform: translateX(-50%); text-align: center; width: 100%; pointer-events: none; z-index: 50; opacity: 0; transition: opacity 1s; }
         .lvl-title { font-family: var(--font-display); font-size: 3rem; color: var(--accent-color); text-shadow: 0 0 20px #000; animation: pulse 2s infinite; }
         .lvl-hint { font-family: var(--font-serif); font-size: 1.4rem; color: #eee; text-shadow: 0 0 10px #000; margin-top: 5px; background: rgba(0,0,0,0.5); padding: 5px; display: inline-block; border-radius: 5px; }
+        .inv-tabs { display:flex; gap:5px; margin-bottom:12px; }
+        .inv-tab { flex:1; background:#111; border:1px solid #444; color:#888; padding:8px 4px; text-align:center; cursor:pointer; font-family:var(--font-display); font-size:0.8rem; transition:all 0.2s; }
+        .inv-tab:hover { border-color:#888; color:#ccc; }
+        .inv-tab.active { border-color:var(--accent-color); color:var(--accent-color); background:#1a0a0a; }
+        .grim-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; max-height:55vh; overflow-y:auto; }
+        .grim-entry { border:1px solid #222; background:#0a0a0a; padding:6px; font-size:10px; text-align:center; min-height:50px; display:flex; flex-direction:column; justify-content:center; }
+        .grim-entry.found { border-color:#4a4; background:#0a1a0a; }
+        .grim-entry.unseen { color:#333; }
+        .ach-list { max-height:55vh; overflow-y:auto; }
+        .ach-item { display:flex; align-items:center; gap:10px; padding:8px; border-bottom:1px solid #222; }
+        .ach-item.locked { opacity:0.4; }
+        .ach-icon { font-size:1.5rem; width:30px; text-align:center; }
+        .ach-info { flex:1; }
+        .ach-name { font-family:var(--font-display); font-size:0.9rem; color:var(--accent-color); }
+        .ach-desc { font-size:0.75rem; color:#888; }
+        .ach-prog { font-size:0.7rem; color:#666; margin-top:2px; }
+        .grim-count, .ach-count { text-align:center; font-size:0.85rem; color:#888; margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:8px; }
     </style>
 </head>
 <body>
 <div id="inv-screen">
-    <div style="text-align:center;font-family:var(--font-display);font-size:1.5rem;color:var(--accent-color)">AUSRÜSTUNG</div>
-    <div class="equip-slots" id="equip-display"></div>
-    <div id="inv-mode-btn" onclick="cycleInvMode()" class="btn-mode">MODUS: AUSRÜSTEN</div>
-    <div style="text-align:center;font-size:0.9rem;opacity:0.7">RUCKSACK</div>
-    <div class="inv-grid" id="inv-display"></div>
+    <div class="inv-tabs">
+        <div class="inv-tab active" onclick="invTab(0)">AUSRÜSTUNG</div>
+        <div class="inv-tab" onclick="invTab(1)">GRIMOIRE</div>
+        <div class="inv-tab" onclick="invTab(2)">ERFOLGE</div>
+    </div>
+    <div id="inv-content-0">
+        <div class="equip-slots" id="equip-display"></div>
+        <div id="inv-mode-btn" onclick="cycleInvMode()" class="btn-mode">MODUS: AUSRÜSTEN</div>
+        <div style="text-align:center;font-size:0.9rem;opacity:0.7">RUCKSACK</div>
+        <div class="inv-grid" id="inv-display"></div>
+    </div>
+    <div id="inv-content-1" style="display:none"></div>
+    <div id="inv-content-2" style="display:none"></div>
 </div>
 <div id="start-screen">
     <h1>The Glitch Dungeon</h1>
@@ -181,6 +206,33 @@ const ADJ_DATA={
  "Wild":{spd:1.2,dmg:1.2,col:'#f00'},"Hungrig":{fx:'LIFESTEAL',col:'#a00'},"Goldener":{hp:1.5,col:'#ffd700',fx:'RICH'}
 };
 const ADJ=Object.keys(ADJ_DATA);
+const MONS=Object.keys(BESTIARY),GRIM_TOTAL=MONS.length*ADJ.length;
+const ACHIEVEMENTS=[
+ {id:0,n:"Erstes Blut",d:"Töte dein erstes Monster",i:"💀",k:"kills",t:1},
+ {id:1,n:"Jäger",d:"Töte 50 Monster",i:"⚔️",k:"kills",t:50},
+ {id:2,n:"Schlächter",d:"Töte 500 Monster",i:"🗡️",k:"kills",t:500},
+ {id:3,n:"Tiefer Abstieg",d:"Erreiche Tiefe 10",i:"🕳️",k:"maxLvl",t:10},
+ {id:4,n:"Abgrund",d:"Erreiche Tiefe 25",i:"🌑",k:"maxLvl",t:25},
+ {id:5,n:"Kernsucher",d:"Erreiche Tiefe 50",i:"💎",k:"maxLvl",t:50},
+ {id:6,n:"Goldgier",d:"Sammle 1.000 Gold total",i:"💰",k:"totalGold",t:1000},
+ {id:7,n:"Schatzjäger",d:"Sammle 10.000 Gold total",i:"👑",k:"totalGold",t:10000},
+ {id:8,n:"Bossmeister",d:"Besiege deinen ersten Boss",i:"🏆",k:"bossKills",t:1},
+ {id:9,n:"Legendentöter",d:"Besiege 10 Bosse",i:"⭐",k:"bossKills",t:10},
+ {id:10,n:"Sammler",d:"Entdecke 25 Grimoire-Einträge",i:"📖",k:"grimCount",t:25},
+ {id:11,n:"Forscher",d:"Entdecke 75 Grimoire-Einträge",i:"📚",k:"grimCount",t:75},
+ {id:12,n:"Enzyklopädist",d:"Entdecke alle Grimoire-Einträge",i:"🏛️",k:"grimCount",t:GRIM_TOTAL},
+ {id:13,n:"Wanderer",d:"Betrete alle 10 Biome",i:"🗺️",k:"biomesVisited",t:10},
+ {id:14,n:"Überlebenskünstler",d:"Überlebe 100 Züge in einem Run",i:"⏳",k:"maxTurns",t:100},
+ {id:15,n:"Zeitmeister",d:"Überlebe 500 Züge in einem Run",i:"⌛",k:"maxTurns",t:500}
+];
+let stats={kills:0,totalGold:0,bossKills:0,maxTurns:0,biomesVisited:0,grimoire:[],ach:0};
+function loadStats(){try{let s=JSON.parse(localStorage.getItem('GD4_Stats')||'{}');stats.kills=s.k||0;stats.totalGold=s.g||0;stats.bossKills=s.b||0;stats.maxTurns=s.t||0;stats.biomesVisited=s.v||0;stats.grimoire=s.m||[];stats.ach=s.a||0;}catch(e){}}
+function saveStats(){localStorage.setItem('GD4_Stats',JSON.stringify({k:stats.kills,g:stats.totalGold,b:stats.bossKills,t:stats.maxTurns,v:stats.biomesVisited,m:stats.grimoire,a:stats.ach}));}
+function grimId(mon,adj){return MONS.indexOf(mon)*ADJ.length+ADJ.indexOf(adj);}
+function discoverMon(mon,adj){let id=grimId(mon,adj);if(id>=0&&!stats.grimoire.includes(id)){stats.grimoire.push(id);checkAch();saveStats();}}
+function checkAch(){let changed=false;ACHIEVEMENTS.forEach(a=>{if(stats.ach&(1<<a.id))return;let v;if(a.k==='grimCount')v=stats.grimoire.length;else if(a.k==='biomesVisited'){let c=0;for(let i=0;i<10;i++)if(stats.biomesVisited&(1<<i))c++;v=c;}else v=stats[a.k];if(v>=a.t){stats.ach|=(1<<a.id);changed=true;showAchPopup(a);}});if(changed)saveStats();}
+function showAchPopup(a){let el=document.createElement('div');el.style.cssText='position:fixed;top:20%;left:50%;transform:translateX(-50%);background:#0a0a0a;border:2px solid #ffd700;padding:15px 25px;z-index:200;text-align:center;animation:fadeIn 0.5s;box-shadow:0 0 30px #ffd700;';el.innerHTML=`<div style="font-size:2rem">${a.i}</div><div style="font-family:var(--font-display);color:#ffd700;margin:5px 0">ERFOLG!</div><div style="color:#c5a059">${esc(a.n)}</div>`;document.body.appendChild(el);setTimeout(()=>el.remove(),3000);}
+loadStats();
 
 const TILE_FX={
  // 2: Eis - Gleiten (Eishöhle)
@@ -270,7 +322,7 @@ const ITEM_POOL=[
 // --- STATE ---
 let meta={bits:0,hp:10,maxHp:10,mana:10,maxMana:10,stam:10,maxStam:10,dmg:1,mine:1,noise:5,speed:10,def:0,manaRegen:0,stamRegen:1,class:'WARRIOR',critChance:0.05,dodgeChance:0.05,lootMul:1.0,glitchMod:0,scrolls:0,torchCount:2,torchRadius:150,maxLvl:1,shopSlots:3,shopLuck:0,lockedItems:[],spellDmg:0,stealthCost:5,stealthDrain:3};
 if(localStorage.getItem('GD4_Dark_Save')){try{let s=JSON.parse(localStorage.getItem('GD4_Dark_Save'));meta.bits=s.bits;meta.maxLvl=s.maxLvl;meta.shopSlots=s.shopSlots;meta.shopLuck=s.shopLuck;}catch(e){localStorage.removeItem('GD4_Dark_Save');}}
-let game={invMode:0,mode:'GAME',map:[],walls:new Uint8Array(GRID*GRID),level:1,biome:0,p:{x:1,y:1,en:0,dir:{x:0,y:1},hidden:false,lavaCD:0,falling:false,slide:false,slideDir:null},enemies:[],items:[],particles:[],shopItems:[],torches:[],inventory:[],equipment:{WEAPON:null,ARMOR:null,RELIC:null},stats:{},key:{x:0,y:0},exit:{x:0,y:0},timers:{glitch:25,stun:0,shake:0,poison:0,burn:0},lockMode:false,rerollCost:10,lockInput:false,aiming:false,mouse:{x:0,y:0},confused:0,crystalVision:0,boss:null,bossAura:null,chargePreview:null,isBossLevel:false};
+let game={invMode:0,mode:'GAME',map:[],walls:new Uint8Array(GRID*GRID),level:1,biome:0,turnCount:0,p:{x:1,y:1,en:0,dir:{x:0,y:1},hidden:false,lavaCD:0,falling:false,slide:false,slideDir:null},enemies:[],items:[],particles:[],shopItems:[],torches:[],inventory:[],equipment:{WEAPON:null,ARMOR:null,RELIC:null},stats:{},key:{x:0,y:0},exit:{x:0,y:0},timers:{glitch:25,stun:0,shake:0,poison:0,burn:0},lockMode:false,rerollCost:10,lockInput:false,aiming:false,mouse:{x:0,y:0},confused:0,crystalVision:0,boss:null,bossAura:null,chargePreview:null,isBossLevel:false};
 
 // --- LOGIC ---
 const cb=$('class-btns');
@@ -283,15 +335,16 @@ function enterDungeon(k){
  $('start-screen').style.opacity=0;
  setTimeout(()=>{$('start-screen').style.display='none';let gw=$('game-wrapper');gw.style.display='flex';void gw.offsetWidth;gw.style.opacity='1';initGame(startItem);},800);
 }
-function initGame(s){game.inventory=[];game.equipment={WEAPON:s||null,ARMOR:null,RELIC:null};calcStats();startLevel(1);requestAnimationFrame(loop);}
+function initGame(s){game.inventory=[];game.equipment={WEAPON:s||null,ARMOR:null,RELIC:null};game.turnCount=0;calcStats();startLevel(1);requestAnimationFrame(loop);}
 function startLevel(lvl){
  // Boss-Level Check (alle 5 Levels)
  if(lvl%5===0&&lvl>0){startBossLevel(lvl);return;}
  game.isBossLevel=false;game.boss=null;game.bossAura=null;game.chargePreview=null;
  $('shop-ui').style.display='none';
  if(lvl>game.level){meta.mana=Math.min(game.stats.maxMana,meta.mana+(game.stats.maxMana/3)|0);addParticle(game.p.x,game.p.y,"MANA +",'#0af');}
- game.level=lvl;if(lvl>meta.maxLvl){meta.maxLvl=lvl;save();}
+ game.level=lvl;if(lvl>meta.maxLvl){meta.maxLvl=lvl;checkAch();save();}
  game.biome=(Math.floor((lvl-1)/5))%BIOMES.length;let B=BIOMES[game.biome];
+ if(!(stats.biomesVisited&(1<<game.biome))){stats.biomesVisited|=(1<<game.biome);checkAch();saveStats();}
  document.documentElement.style.setProperty('--accent-color',B.c[3]);
  let el=$('level-announcement');el.innerHTML=`<div class="lvl-title">${B.n}</div><div class="lvl-hint">${B.hint||""}</div>`;el.style.opacity=1;setTimeout(()=>el.style.opacity=0,4000);
  C.WALL=B.c[0];C.FLOOR=B.c[1];C.MUD=B.c[2];C.PL=B.c[3];
@@ -385,6 +438,7 @@ function spawnActors(){
   let hue=rnd(0,360),adj=ADJ[rnd(0,ADJ.length-1)],ad=ADJ_DATA[adj];
   if(B.n==="EISHÖHLE")hue=200;if(B.n==="VULKAN")hue=0;if(B.n==="SUMPF")hue=100;if(B.n==="NEKRO")hue=120;
   let mob={x:pos.x,y:pos.y,hp:(hp*(ad.hp||1))|0,max:(hp*(ad.hp||1))|0,dmg:(dmg*(ad.dmg||1))|0,bits:((15+pow*10)*type.st[3]*game.stats.lootMul)|0,hue,type:key,col:ad.col,fx:ad.fx,sight:ad.sight||6,name:`${adj} ${type.n}`,energy:rnd(0,50),speed:(spd*(ad.spd||1))|0,state:type.ai};
+  discoverMon(key,adj);
   // Spezial-Monster-Eigenschaften
   if(type.mech){
    mob.mech=type.mech;
@@ -433,8 +487,8 @@ function hurt(e,dmg,isP,txt,col,isSpell){
    }
   }
   if(e.hp<=0){
-   game.enemies=game.enemies.filter(x=>x!==e);meta.bits+=e.bits;addParticle(e.x,e.y,`+${e.bits}`,C.BITS);sfx('kill');
-   if(e.isBoss){game.boss=null;addParticle(e.x,e.y,"BOSS BESIEGT!",'#ffd700');sfx('kill');sfx('shop');game.items.push({x:e.x,y:e.y,type:'EQUIP',val:genItem(game.level+5)});game.items.push({x:e.x+1,y:e.y,type:'EQUIP',val:genItem(game.level+3)});}
+   game.enemies=game.enemies.filter(x=>x!==e);meta.bits+=e.bits;stats.kills++;stats.totalGold+=e.bits;addParticle(e.x,e.y,`+${e.bits}`,C.BITS);sfx('kill');checkAch();saveStats();
+   if(e.isBoss){game.boss=null;stats.bossKills++;addParticle(e.x,e.y,"BOSS BESIEGT!",'#ffd700');sfx('kill');sfx('shop');game.items.push({x:e.x,y:e.y,type:'EQUIP',val:genItem(game.level+5)});game.items.push({x:e.x+1,y:e.y,type:'EQUIP',val:genItem(game.level+3)});checkAch();saveStats();}
    if(e.fx==='RICH'){game.items.push({x:e.x,y:e.y,type:'EQUIP',val:genItem(game.level+2)});addParticle(e.x,e.y,"JACKPOT!",'#ffd700');}
   }}
 }
@@ -843,7 +897,7 @@ function calcStats(){
  game.stats.critChance=Math.min(1.0,game.stats.critChance);game.stats.dodgeChance=Math.min(0.75,game.stats.dodgeChance);game.stats.speed=Math.max(2,game.stats.speed);game.stats.noise=Math.max(0,game.stats.noise);
 }
 function save(){localStorage.setItem('GD4_Dark_Save',JSON.stringify(meta));}
-function delSave(){if(confirm('Alles löschen?')){localStorage.removeItem('GD4_Dark_Save');location.reload();}}
+function delSave(){if(confirm('Alles löschen (inkl. Grimoire & Erfolge)?')){localStorage.removeItem('GD4_Dark_Save');localStorage.removeItem('GD4_Stats');location.reload();}}
 function triggerGameOver(){game.mode='SHOP';game.rerollCost=10;generateShop();$('shop-ui').style.display='flex';if(meta.maxLvl>1){$('lvl-select').style.display='block';$('lvl-slider').max=meta.maxLvl;$('lvl-slider').value=1;$('lvl-val').innerText=1;}save();}
 function generateShop(){game.shopItems=[];let slots=meta.shopSlots;if(meta.lockedItems&&meta.lockedItems.length>0){meta.lockedItems.forEach(li=>{if(game.shopItems.length<slots){let base=ITEM_POOL.find(i=>i.name===li.itemName),tier=R_MAP[li.tierName];if(base&&tier)game.shopItems.push({idx:game.shopItems.length+1,item:base,tier,cost:li.cost,purchased:false,locked:true});}});meta.lockedItems=[];}while(game.shopItems.length<slots){let base=ITEM_POOL[rnd(0,ITEM_POOL.length-1)],roll=Math.random()*100-meta.shopLuck-(meta.maxLvl*3),rIndex=0;for(let i=RARITIES.length-1;i>=0;i--)if(roll<RARITIES[i].chance){rIndex=i;break;}let tier=RARITIES[rIndex],cost=Math.floor(base.baseCost*tier.mul);game.shopItems.push({idx:game.shopItems.length+1,item:base,tier,cost,purchased:false,locked:false});}}
 function respawn(){meta.hp=meta.maxHp;meta.stam=meta.maxStam;meta.mana=meta.maxMana;meta.lockedItems=game.shopItems.filter(i=>i.locked&&!i.purchased).map(i=>({itemName:i.item.name,tierName:i.tier.name,cost:i.cost}));game.mode='GAME';let sl=parseInt($('lvl-slider').value)||1;$('lvl-select').style.display='none';startLevel(sl);}
@@ -908,9 +962,13 @@ function useSkill(){
  }else if(c==='MAGE'){game.aiming=!game.aiming;addParticle(game.p.x,game.p.y,game.aiming?"ZIELEN...":"ABBRUCH",'#f0f');updateUI();return;}
  if(acted){game.p.energy-=100;updateUI();processTurns();}
 }
-function inv_toggle(){let el=$('inv-screen');if(el.style.display==='block'){el.style.display='none';game.invMode=0;}else{game.invMode=0;updateInvModeUI();renderInv();el.style.display='block';}}
+function inv_toggle(){let el=$('inv-screen');if(el.style.display==='block'){el.style.display='none';game.invMode=0;}else{game.invMode=0;invTab(invTabIdx);updateInvModeUI();renderInv();el.style.display='block';}}
 function cycleInvMode(){game.invMode=(game.mode==='SHOP')?((game.invMode===0)?2:0):((game.invMode===0)?1:0);updateInvModeUI();}
 function updateInvModeUI(){let btn=$('inv-mode-btn'),grid=$('inv-display');grid.className='inv-grid';if(game.invMode===0){btn.innerText="MODUS: AUSRÜSTEN";btn.style.color="#ccc";btn.style.borderColor="#555";}else if(game.invMode===1){btn.innerText="MODUS: MÜLL (LÖSCHEN!)";btn.style.color="#f00";btn.style.borderColor="#f00";grid.classList.add('mode-trash');}else if(game.invMode===2){btn.innerText="MODUS: VERKAUFEN";btn.style.color="#ffd700";btn.style.borderColor="#ffd700";grid.classList.add('mode-sell');}}
+let invTabIdx=0;
+function invTab(i){invTabIdx=i;document.querySelectorAll('.inv-tab').forEach((t,j)=>t.classList.toggle('active',i===j));for(let j=0;j<3;j++)$('inv-content-'+j).style.display=i===j?'block':'none';if(i===1)renderGrim();if(i===2)renderAch();}
+function renderGrim(){let cnt=stats.grimoire.length,h=`<div class="grim-count">ENTDECKT: ${cnt}/${GRIM_TOTAL}</div><div class="grim-grid">`;MONS.forEach(m=>{ADJ.forEach(a=>{let id=grimId(m,a),f=stats.grimoire.includes(id),ad=ADJ_DATA[a];h+=`<div class="grim-entry ${f?'found':'unseen'}"><div style="color:${f?ad.col:'#333'}">${f?a:'???'}</div><div>${f?BESTIARY[m].n:'???'}</div></div>`;});});$('inv-content-1').innerHTML=h+'</div>';}
+function renderAch(){let done=ACHIEVEMENTS.filter(a=>stats.ach&(1<<a.id)).length,h=`<div class="ach-count">ERFOLGE: ${done}/${ACHIEVEMENTS.length}</div><div class="ach-list">`;ACHIEVEMENTS.forEach(a=>{let unlocked=stats.ach&(1<<a.id),v;if(a.k==='grimCount')v=stats.grimoire.length;else if(a.k==='biomesVisited'){let c=0;for(let i=0;i<10;i++)if(stats.biomesVisited&(1<<i))c++;v=c;}else v=stats[a.k];let prog=unlocked?'':`<div class="ach-prog">${Math.min(v,a.t)}/${a.t}</div>`;h+=`<div class="ach-item ${unlocked?'':'locked'}"><div class="ach-icon">${unlocked?a.i:'🔒'}</div><div class="ach-info"><div class="ach-name">${esc(a.n)}</div><div class="ach-desc">${esc(a.d)}</div>${prog}</div></div>`;});$('inv-content-2').innerHTML=h+'</div>';}
 function renderInv(){
  let h='';['WEAPON','ARMOR','RELIC'].forEach(s=>{let it=game.equipment[s],st=it?`border-color:${it.rarityCol||'#333'};box-shadow:0 0 8px ${it.rarityCol||'#000'};`:'';h+=`<div class="inv-slot ${it?'equipped':''}" style="${st}" onclick="inv_unequip('${s}')"><div class="equip-slot-label">${s}</div>${it?`<div style="color:${it.col}">${esc(it.name)}</div>${renderMods(it)}`:'<span style="color:#333">LEER</span>'}</div>`;});$('equip-display').innerHTML=h;h='';
  game.inventory.forEach((it,i)=>{
@@ -945,7 +1003,7 @@ function shopReroll(){if(meta.bits>=game.rerollCost){sfx('shop');meta.bits-=game
 function shopAction(i){let o=game.shopItems[i];if(game.lockMode){if(o.purchased)return;if(o.locked)o.locked=false;else{let c=Math.max(1,(o.cost*0.1)|0);if(meta.bits>=c){sfx('step');meta.bits-=c;o.locked=true;addParticle(320,320,"GESPERRT",'#fff');}else game.timers.shake=5;}}else if(!o.purchased){if(meta.bits>=o.cost){sfx('shop');meta.bits-=o.cost;o.purchased=true;o.locked=false;let v=o.item.calc(o.tier);o.item.run(meta,v);addParticle(320,320,o.item.unit==='%'?`+${Math.round(v*100)}%`:`+${v} ${o.item.unit}`,o.tier.col==='RAINBOW'?'#fff':o.tier.col);game.timers.shake=3;save();}else game.timers.shake=5;}updateUI();}
 function inputGame(e){if(meta.hp<=0||game.lockInput)return;let dx=0,dy=0,acted=false;if(e.key==='i'){inv_toggle();return;}if(e.key.match(/w|ArrowUp/))dy=-1;else if(e.key.match(/s|ArrowDown/))dy=1;else if(e.key.match(/a|ArrowLeft/))dx=-1;else if(e.key.match(/d|ArrowRight/))dx=1;else if(e.key===' '){game.p.actNoise=0;acted=true;}else if(e.key.toLowerCase()==='b'){useSkill();return;}else if(e.key.toLowerCase()==='f'){useConsumable();return;}else return;if(dx!==0||dy!==0)acted=movePlayer(dx,dy);if(acted)endTurn();}
 function act(c){au();if(game.aiming&&c!=='SKILL'){game.aiming=false;updateUI();}if(c==='U')movePlayer(0,-1)&&endTurn();if(c==='D')movePlayer(0,1)&&endTurn();if(c==='L')movePlayer(-1,0)&&endTurn();if(c==='R')movePlayer(1,0)&&endTurn();if(c==='WAIT'){game.p.actNoise=0;endTurn();}if(c==='SKILL')useSkill();if(c==='ITEM')useConsumable();if(c==='INV')inv_toggle();if(c==='HELP')alert('WASD/Pfeile: Move\nSPACE: Wait\nB: Skill\nF: Item\nI: Inv');if(c==='ATK'){let d=game.p.dir;movePlayer(d.x,d.y)&&endTurn();}}
-function endTurn(){game.p.energy-=100;processTurns();return true;}
+function endTurn(){game.p.energy-=100;game.turnCount++;if(game.turnCount>stats.maxTurns){stats.maxTurns=game.turnCount;checkAch();saveStats();}processTurns();return true;}
 CVS.onclick=e=>{au();let rect=CVS.getBoundingClientRect();if(game.mode==='SHOP'){let s=640/rect.height,y=(e.clientY-rect.top)*s;if(y>465&&y<495)shopReroll();else if(y>=495&&y<525)game.lockMode=!game.lockMode;else{let i=Math.floor((y-120)/40);if(i>=0&&i<game.shopItems.length)shopAction(i);}return;}let tx=((e.clientX-rect.left)/(rect.width/GRID))|0,ty=((e.clientY-rect.top)/(rect.height/GRID))|0;if(game.aiming&&meta.class==='MAGE'){castFireball(tx,ty);return;}let t=game.enemies.find(en=>en.x===tx&&en.y===ty);if(t){let dx=tx-game.p.x,dy=ty-game.p.y;if(Math.abs(dx)+Math.abs(dy)===1){movePlayer(dx,dy)&&endTurn();}else stepTowards(tx,ty);}else stepTowards(tx,ty);};
 function castFireball(tx,ty){if(meta.mana<5){addParticle(game.p.x,game.p.y,"KEIN MANA",'#0af');game.aiming=false;updateUI();return;}if(!hasLOS(game.p.x,game.p.y,tx,ty)){addParticle(tx,ty,"BLOCKIERT",'#f00');return;}meta.mana-=5;sfx('glitch');game.aiming=false;updateUI();let t=game.enemies.find(e=>e.x===tx&&e.y===ty);if(t){hurt(t,game.stats.dmg*1.5+(game.stats.spellDmg||0)*3,false);if(t.hp>0)t.state='HUNT';}else addParticle(tx,ty,"BOOM!",'#f60');for(let sy=-1;sy<=1;sy++)for(let sx=-1;sx<=1;sx++){if(sx===0&&sy===0)continue;let st=game.enemies.find(e=>e.x===tx+sx&&e.y===ty+sy);if(st){hurt(st,Math.floor(game.stats.dmg),false,`SPLASH -${Math.floor(game.stats.dmg)}`,'#f60');}}game.p.energy-=100;processTurns();}
 function hasLOS(x0,y0,x1,y1){let dx=Math.abs(x1-x0),dy=Math.abs(y1-y0),sx=(x0<x1)?1:-1,sy=(y0<y1)?1:-1,err=dx-dy;while(true){if(x0===x1&&y0===y1)return true;if(game.map[y0][x0]===1)return false;let e2=2*err;if(e2>-dy){err-=dy;x0+=sx;}if(e2<dx){err+=dx;y0+=sy;}}}
