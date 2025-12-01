@@ -148,17 +148,18 @@ const CVS=$('cvs'),CTX=CVS.getContext('2d'),L_CVS=document.createElement('canvas
 const C={BG:'#050505',WALL:'#2a2a2a',FLOOR:'#111111',PL:'#e3d5b8',BITS:'#ffd700'};
 
 // --- BIOME CONFIG ---
+// Tile-Typen: 0=Boden, 1=Wand, 2=Eis, 3=Morast(langsam), 4=Lava, 5=Astral, 6=Tümpel(Gift), 7=Kristall, 8=Leere, 9=Labyrinth, 10=Chaos
 const BIOMES=[
  {n:"KATAKOMBEN",hint:"Massive Wände.",c:['#444','#222','#000','#888'],f:(x,y)=>Math.random()<0.2?1:0,hp:10,mobs:['SKEL','RAT','SPIDER']},
- {n:"EISHÖHLE",hint:"Rutschig.",c:['#8ff','#004','#002','#aff'],f:(x,y)=>Math.sin(x/2)*Math.cos(y/2)>0.2?1:0,hp:12,mobs:['GOLEM','WRAITH','ELEMENTAL']},
- {n:"SUMPF",hint:"Zäher Morast.",c:['#462','#230','#120','#682'],f:(x,y)=>Math.sin(x/3)*Math.cos(y/3)>0.6?1:(Math.random()>0.7?3:0),hp:10,mobs:['SLIME','SNAKE','BAT']},
- {n:"VULKAN",hint:"Heiß!",c:['#611','#300','#200','#f40'],f:(x,y)=>Math.sin(x/2)+Math.cos(y/2)>1.2?1:4,hp:15,mobs:['GOLEM','ELEMENTAL','EYE']},
- {n:"ASTRAL",hint:"Instabil.",c:['#f0f','#000','#0f0','#f0f'],f:(x,y)=>Math.random()<0.3?1:0,hp:8,mobs:['MIMIC','EYE','GHOST']},
- {n:"NEKRO",hint:"Der Tod lauert.",c:['#2f2','#111','#020','#0f0'],f:(x,y)=>Math.abs(Math.sin(x/4)*Math.cos(y/4))>0.5?1:0,hp:12,mobs:['SKEL','WRAITH','GHOST']},
- {n:"KRISTALL",hint:"Harte Schale.",c:['#c0f','#203','#102','#e0f'],f:(x,y)=>(x%2===0&&y%2===0)?1:0,hp:20,mobs:['ELEMENTAL','GOLEM']},
- {n:"LEERE",hint:"Nicht fallen.",c:['#333','#000','#000','#fff'],f:(x,y)=>1,hp:10,mobs:['WRAITH','EYE']},
- {n:"LABYRINTH",hint:"Verwirrend.",c:['#555','#333','#111','#aaa'],f:(x,y)=>(Math.sin(x)>0)^(Math.cos(y)>0)?1:0,hp:15,mobs:['RAT','SPIDER','MIMIC']},
- {n:"CHAOS",hint:"?!?",c:['#f0f','#0f0','#00f','#ff0'],f:(x,y)=>Math.random()<0.5?1:0,hp:10,mobs:['MIMIC','GHOST','SNAKE']}
+ {n:"EISHÖHLE",hint:"Rutschig!",c:['#8ff','#004','#002','#aff'],f:(x,y)=>Math.sin(x/2)*Math.cos(y/2)>0.2?1:(Math.random()<0.6?2:0),hp:12,mobs:['GOLEM','WRAITH','ELEMENTAL']},
+ {n:"SUMPF",hint:"Zäher Morast.",c:['#462','#230','#120','#682'],f:(x,y)=>Math.sin(x/3)*Math.cos(y/3)>0.6?1:(Math.random()<0.35?3:(Math.random()<0.15?6:0)),hp:10,mobs:['SLIME','SNAKE','BAT']},
+ {n:"VULKAN",hint:"Meide die Lava!",c:['#611','#300','#200','#f40'],f:(x,y)=>Math.sin(x/2)+Math.cos(y/2)>1.2?1:(Math.random()<0.2?4:0),hp:15,mobs:['GOLEM','ELEMENTAL','EYE']},
+ {n:"ASTRAL",hint:"Instabil.",c:['#f0f','#000','#0f0','#f0f'],f:(x,y)=>Math.random()<0.3?1:(Math.random()<0.4?5:0),hp:8,mobs:['MIMIC','EYE','GHOST']},
+ {n:"NEKRO",hint:"Der Tod lauert.",c:['#2f2','#111','#020','#0f0'],f:(x,y)=>Math.abs(Math.sin(x/4)*Math.cos(y/4))>0.5?1:0,hp:12,mobs:['SKEL','WRAITH','GHOST'],fx:'NEKRO'},
+ {n:"KRISTALL",hint:"Harte Schale.",c:['#c0f','#203','#102','#e0f'],f:(x,y)=>(x%2===0&&y%2===0)?1:(Math.random()<0.3?7:0),hp:20,mobs:['ELEMENTAL','GOLEM']},
+ {n:"LEERE",hint:"Nicht fallen!",c:['#333','#000','#000','#fff'],f:(x,y)=>Math.random()<0.15?8:(Math.random()<0.3?1:0),hp:10,mobs:['WRAITH','EYE']},
+ {n:"LABYRINTH",hint:"Verwirrend.",c:['#555','#333','#111','#aaa'],f:(x,y)=>(Math.sin(x)>0)^(Math.cos(y)>0)?1:(Math.random()<0.2?9:0),hp:15,mobs:['RAT','SPIDER','MIMIC']},
+ {n:"CHAOS",hint:"?!?",c:['#f0f','#0f0','#00f','#ff0'],f:(x,y)=>Math.random()<0.25?1:(Math.random()<0.5?(2+Math.floor(Math.random()*9)):0),hp:10,mobs:['MIMIC','GHOST','SNAKE'],fx:'CHAOS'}
 ];
 const BESTIARY={
  SKEL:{n:'Skelett',ai:'SLEEP',st:[1,1,1,1]},SLIME:{n:'Schleim',ai:'PATROL',st:[0.8,0.8,0.8,0.8]},
@@ -177,10 +178,24 @@ const ADJ_DATA={
 const ADJ=Object.keys(ADJ_DATA);
 
 const TILE_FX={
- 2:p=>p.slide=true,
- 4:p=>{if(Math.random()<0.2)hurt(game.p,1,true,'HEISS!','#f00')},
- 5:p=>{if(Math.random()<0.1){p.x=rnd(1,GRID-2);p.y=rnd(1,GRID-2);sfx('glitch');}},
- 6:p=>{if(Math.random()<0.2)hurt(game.p,1,true,'NEKRO!','#0f0')}
+ // 2: Eis - Gleiten (Eishöhle)
+ 2:(p,dx,dy)=>{p.slide=true;p.slideDir={x:dx,y:dy};addParticle(p.x,p.y,'~','#aff',0.3);},
+ // 3: Morast - Verlangsamt (kostet extra Energy, nicht Ausdauer!)
+ 3:(p)=>{game.p.energy-=30;addParticle(p.x,p.y,'ZÄHER BODEN','#5c4033',0.5);},
+ // 4: Lava - Brennender Boden (Vulkan) - garantierter aber niedriger Schaden
+ 4:(p)=>{if(!p.lavaCD){hurt(game.p,1,true,'HEISS!','#f40');p.lavaCD=3;addParticle(p.x,p.y,'🔥','#f60',0.5);}},
+ // 5: Astral - Instabiler Boden (zufälliger Mini-Teleport 1-2 Felder)
+ 5:(p)=>{if(Math.random()<0.25){let ox=p.x,oy=p.y,tries=10;do{p.x=Math.max(1,Math.min(GRID-2,ox+rnd(-2,2)));p.y=Math.max(1,Math.min(GRID-2,oy+rnd(-2,2)));tries--;}while((game.map[p.y][p.x]===1||game.enemies.some(e=>e.x===p.x&&e.y===p.y))&&tries>0);if(tries<=0){p.x=ox;p.y=oy;}else{sfx('glitch');addParticle(ox,oy,'SHIFT','#f0f');addParticle(p.x,p.y,'!','#f0f');}}},
+ // 6: Tümpel (Sumpf) - 30% Chance auf Gift
+ 6:(p)=>{if(Math.random()<0.3&&game.timers.poison<=0){game.timers.poison=15;sfx('hit');addParticle(p.x,p.y,'VERGIFTET!','#0f0');}else if(game.timers.poison<=0){addParticle(p.x,p.y,'GLIBBER','#4a2',0.3);}},
+ // 7: Kristall - Reflektion (Gegner sehen dich früher)
+ 7:(p)=>{game.crystalVision=3;addParticle(p.x,p.y,'*','#e0f',0.2);},
+ // 8: Leere - Langsamer Fall (kostet extra Zug, kein Schaden)
+ 8:(p)=>{if(!p.falling){p.falling=true;addParticle(p.x,p.y,'SCHWEBEN...','#fff');game.p.energy-=50;}else{p.falling=false;addParticle(p.x,p.y,'LANDUNG','#888');}},
+ // 9: Labyrinth - Verwirrung (Richtung wird manchmal gedreht)
+ 9:(p)=>{if(Math.random()<0.2){game.confused=2;addParticle(p.x,p.y,'???','#ff0');}},
+ // 10: Chaos - Random Effekt (nur positiv oder neutral, nie tödlich)
+ 10:(p)=>{let r=rnd(1,6);if(r===1){meta.hp=Math.min(meta.hp+1,game.stats.maxHp);addParticle(p.x,p.y,'+1HP','#0f0');}else if(r===2){meta.mana=Math.min(meta.mana+3,game.stats.maxMana);addParticle(p.x,p.y,'+MANA','#0af');}else if(r===3){meta.stam=Math.min(meta.stam+2,game.stats.maxStam);addParticle(p.x,p.y,'+STAM','#ff0');}else if(r===4){game.timers.glitch+=2;addParticle(p.x,p.y,'+ZEIT','#f0f');}else if(r===5){sfx('glitch');addParticle(p.x,p.y,'CHAOS!','#f0f');}else{addParticle(p.x,p.y,'...','#888');}}
 };
 
 // --- DATA ---
@@ -223,7 +238,7 @@ const ITEM_POOL=[
 // --- STATE ---
 let meta={bits:0,hp:10,maxHp:10,mana:10,maxMana:10,stam:10,maxStam:10,dmg:1,mine:1,noise:5,speed:10,def:0,manaRegen:0,stamRegen:1,class:'WARRIOR',critChance:0.05,dodgeChance:0.05,lootMul:1.0,glitchMod:0,scrolls:0,torchCount:2,torchRadius:150,maxLvl:1,shopSlots:3,shopLuck:0,lockedItems:[],spellDmg:0,stealthCost:5,stealthDrain:3};
 if(localStorage.getItem('GD4_Dark_Save')){try{let s=JSON.parse(localStorage.getItem('GD4_Dark_Save'));meta.bits=s.bits;meta.maxLvl=s.maxLvl;meta.shopSlots=s.shopSlots;meta.shopLuck=s.shopLuck;}catch(e){localStorage.removeItem('GD4_Dark_Save');}}
-let game={invMode:0,mode:'GAME',map:[],walls:new Uint8Array(GRID*GRID),level:1,biome:0,p:{x:1,y:1,en:0,dir:{x:0,y:1},hidden:false},enemies:[],items:[],particles:[],shopItems:[],torches:[],inventory:[],equipment:{WEAPON:null,ARMOR:null,RELIC:null},stats:{},key:{x:0,y:0},exit:{x:0,y:0},timers:{glitch:25,stun:0,shake:0,poison:0,burn:0},lockMode:false,rerollCost:10,lockInput:false,aiming:false,mouse:{x:0,y:0}};
+let game={invMode:0,mode:'GAME',map:[],walls:new Uint8Array(GRID*GRID),level:1,biome:0,p:{x:1,y:1,en:0,dir:{x:0,y:1},hidden:false,lavaCD:0,falling:false,slide:false,slideDir:null},enemies:[],items:[],particles:[],shopItems:[],torches:[],inventory:[],equipment:{WEAPON:null,ARMOR:null,RELIC:null},stats:{},key:{x:0,y:0},exit:{x:0,y:0},timers:{glitch:25,stun:0,shake:0,poison:0,burn:0},lockMode:false,rerollCost:10,lockInput:false,aiming:false,mouse:{x:0,y:0},confused:0,crystalVision:0};
 
 // --- LOGIC ---
 const cb=$('class-btns');
@@ -245,7 +260,7 @@ function startLevel(lvl){
  document.documentElement.style.setProperty('--accent-color',B.c[3]);
  let el=$('level-announcement');el.innerHTML=`<div class="lvl-title">${B.n}</div><div class="lvl-hint">${B.hint||""}</div>`;el.style.opacity=1;setTimeout(()=>el.style.opacity=0,4000);
  C.WALL=B.c[0];C.FLOOR=B.c[1];C.MUD=B.c[2];C.PL=B.c[3];
- game.p.hasKey=false;game.p.hidden=false;game.timers={glitch:15+(game.stats.glitchMod||0),stun:0,shake:0,poison:0,burn:0,curse:0};game.glitchCount=0;
+ game.p.hasKey=false;game.p.hidden=false;game.p.lavaCD=0;game.p.falling=false;game.p.slide=false;game.p.slideDir=null;game.confused=0;game.crystalVision=0;game.nekroTimer=0;game.timers={glitch:15+(game.stats.glitchMod||0),stun:0,shake:0,poison:0,burn:0,curse:0};game.glitchCount=0;
  game.enemies=[];game.items=[];game.particles=[];game.torches=[];game.walls.fill(0);
  meta.hp=Math.min(meta.hp,game.stats.maxHp);if(meta.hp<=0)meta.hp=game.stats.maxHp;
  game.map=[];
@@ -290,7 +305,11 @@ function hurt(e,dmg,isP,txt,col){
  else{e.state='HUNT';if(e.hp<=0){game.enemies=game.enemies.filter(x=>x!==e);meta.bits+=e.bits;addParticle(e.x,e.y,`+${e.bits}`,C.BITS);sfx('kill');if(e.fx==='RICH'){game.items.push({x:e.x,y:e.y,type:'EQUIP',val:genItem(game.level+2)});addParticle(e.x,e.y,"JACKPOT!",'#ffd700');}}}
 }
 function movePlayer(dx,dy){
+ // Labyrinth-Verwirrung: Richtung kann sich drehen
+ if(game.confused>0){let r=rnd(1,4);if(r===1)[dx,dy]=[-dx,-dy];else if(r===2)[dx,dy]=[dy,-dx];else if(r===3)[dx,dy]=[-dy,dx];game.confused--;if(game.confused===0)addParticle(game.p.x,game.p.y,'KLAR!','#fff');}
  game.p.actNoise=1;let nx=game.p.x+dx,ny=game.p.y+dy;game.p.dir={x:dx||game.p.dir.x,y:dy||game.p.dir.y};
+ // Lava-Cooldown reduzieren
+ if(game.p.lavaCD>0)game.p.lavaCD--;
  if(game.map[ny][nx]===1){
   let wid=ny*GRID+nx;
   if(game.walls[wid]>0){
@@ -313,10 +332,18 @@ function movePlayer(dx,dy){
   hurt(t,dmg,false,isCrit?`KRIT ${dmg}!`:null,isCrit?'#ff0':null);
   game.timers.shake=2;return true;
  }
- if(game.map[ny][nx]===3){if(meta.stam<1){addParticle(game.p.x,game.p.y,"STECKT FEST!",'#8b4513');return false;}meta.stam-=1;addParticle(nx,ny,"SCHMATZ",'#5c4033');}
+ // Sumpf/Morast wird jetzt über TILE_FX behandelt (verlangsamt durch Energy-Abzug)
  game.p.x=nx;game.p.y=ny;sfx('step');
- let tile=game.map[ny][nx];if(TILE_FX[tile])TILE_FX[tile](game.p);
- if(game.p.slide){if(game.map[ny+dy][nx+dx]!==1&&!game.enemies.some(e=>e.x===nx+dx&&e.y===ny+dy))setTimeout(()=>movePlayer(dx,dy),100);game.p.slide=false;}
+ // Tile-Effekte auslösen
+ let tile=game.map[ny][nx];if(TILE_FX[tile])TILE_FX[tile](game.p,dx,dy);
+ // Eis-Gleiten (Tile 2) - verbesserte Logik
+ if(game.p.slide&&game.p.slideDir){
+  let sd=game.p.slideDir,snx=nx+sd.x,sny=ny+sd.y;
+  if(snx>0&&snx<GRID-1&&sny>0&&sny<GRID-1&&game.map[sny][snx]!==1&&!game.enemies.some(e=>e.x===snx&&e.y===sny)){
+   setTimeout(()=>{if(game.mode==='GAME')movePlayer(sd.x,sd.y);},80);
+  }
+  game.p.slide=false;game.p.slideDir=null;
+ }
  checkPickups();return true;
 }
 function processTurns(){
@@ -339,7 +366,9 @@ function checkAggro(e){
  if(game.p.hidden)return false;if(e.state==='HUNT')return true;
  let d=Math.hypot(game.p.x-e.x,game.p.y-e.y),steps=Math.ceil(d),wd=0;
  for(let i=1;i<steps;i++){let tx=game.p.x+(e.x-game.p.x)*(i/steps)|0,ty=game.p.y+(e.y-game.p.y)*(i/steps)|0;if(game.walls[ty*GRID+tx]>0)wd+=2.5;}
- if((d+wd)<(e.sight+(game.stats.noise*(game.p.actNoise||0)*0.7))){if(Math.random()<0.6){e.state='HUNT';addParticle(e.x,e.y,"!",'#f00');sfx('hit');return true;}}return false;
+ // Kristall-Vision: erhöhte Sichtweite für beide Seiten
+ let sightMod=game.crystalVision>0?3:0;
+ if((d+wd)<(e.sight+sightMod+(game.stats.noise*(game.p.actNoise||0)*0.7))){if(Math.random()<0.6){e.state='HUNT';addParticle(e.x,e.y,"!",'#f00');sfx('hit');return true;}}return false;
 }
 function enemyAct(e){
  if(e.stun>0){e.stun--;return;}
@@ -364,11 +393,28 @@ function turnLogic(){
  if(game.timers.curse>0)game.timers.curse--;
  if(game.timers.burn>0){game.timers.burn--;if(game.timers.burn%2===0){meta.hp-=1;addParticle(game.p.x,game.p.y,"FEUER",'#f40');}}
  if(game.timers.poison>0){game.timers.poison--;if(game.timers.poison%5===0){meta.hp-=1;addParticle(game.p.x,game.p.y,"GIFT",'#0f0');}}
+ // Nekro-Biom: Alle 20 Ticks spawnt ein Skelett
+ let B=BIOMES[game.biome];
+ if(B.fx==='NEKRO'){
+  game.nekroTimer=(game.nekroTimer||0)+1;
+  if(game.nekroTimer>=20){
+   game.nekroTimer=0;
+   let pos,tries=20;do{pos={x:rnd(1,GRID-2),y:rnd(1,GRID-2)};tries--;}while((game.map[pos.y][pos.x]===1||game.enemies.some(e=>e.x===pos.x&&e.y===pos.y)||(pos.x===game.p.x&&pos.y===game.p.y))&&tries>0);
+   if(tries>0){
+    let t=BESTIARY.SKEL,hp=((t.st[0]*10)+game.level*1.5)|0;
+    game.enemies.push({x:pos.x,y:pos.y,hp,max:hp,dmg:(t.st[1]*1.5+game.level*0.3)|0,bits:(5+game.level*3)|0,name:"Erwecktes Skelett",col:'#0f0',hue:120,state:'HUNT',type:'SKEL',speed:8,energy:0,stun:0,fx:'NONE'});
+    addParticle(pos.x,pos.y,'ERWACHT!','#0f0');sfx('glitch');
+   }
+  }
+ }
  game.timers.glitch--;
  if(game.timers.glitch<=0){
   game.glitchCount++;game.timers.glitch=15+game.stats.glitchMod;game.timers.shake=5;sfx('glitch');addParticle(game.p.x,game.p.y,`REALITÄTSBRUCH (${game.glitchCount})`,'#f0f');
   if(game.glitchCount>5){sfx('kill');setTimeout(()=>sfx('kill'),150);}
-  let B=BIOMES[game.biome];
+  // Nekro-Glitch: 50% Mana-Drain
+  if(B.fx==='NEKRO'&&meta.mana>0){meta.mana=Math.floor(meta.mana*0.5);addParticle(game.p.x,game.p.y,'MANA ENTZOGEN!','#0f0');}
+  // Chaos-Glitch: UI durcheinander
+  if(B.fx==='CHAOS')shuffleUI();
   for(let i=0;i<5+game.glitchCount*2;i++){let rx=rnd(1,GRID-2),ry=rnd(1,GRID-2);if([game.p,game.key,game.exit].every(e=>e.x!==rx||e.y!==ry)){game.map[ry][rx]=(Math.random()<0.5)?B.f(rx,ry):(game.map[ry][rx]?0:1);if(game.map[ry][rx]===1)game.walls[ry*GRID+rx]=B.hp;}}
   if(game.glitchCount>3){
    let pool=(game.glitchCount>6)?Object.keys(BESTIARY):B.mobs,key=pool[rnd(0,pool.length-1)],t=BESTIARY[key],diff=game.level*((game.glitchCount>6)?(game.glitchCount/2):1);
@@ -387,10 +433,20 @@ function loop(){
  CTX.restore();requestAnimationFrame(loop);
 }
 function drawGame(){
+ // Kristall-Vision zurücksetzen
+ if(game.crystalVision>0)game.crystalVision--;
  for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){
   let px=x*TILE,py=y*TILE,t=game.map[y][x];
   if(t===1)drawSprite(CTX,px,py,x+y*GRID,'WALL',C.WALL);
+  else if(t===2){drawSprite(CTX,px,py,x*y+x,'FLOOR','#006');CTX.fillStyle='rgba(150,220,255,0.3)';CTX.fillRect(px,py,TILE,TILE);if(Math.random()<0.02){CTX.fillStyle='#fff';CTX.fillRect(px+rnd(0,28),py+rnd(0,28),2,2);}}
   else if(t===3)drawSprite(CTX,px,py,x*y+x,'FLOOR',C.MUD);
+  else if(t===4){drawSprite(CTX,px,py,x*y+x,'FLOOR','#300');CTX.fillStyle=`rgba(255,${100+Math.sin(Date.now()/200+x)*50},0,${0.4+Math.sin(Date.now()/300+y)*0.2})`;CTX.fillRect(px,py,TILE,TILE);}
+  else if(t===5){drawSprite(CTX,px,py,x*y+x,'FLOOR',C.FLOOR);if(Math.random()<0.05){CTX.fillStyle=`hsl(${Date.now()/10%360},100%,50%)`;CTX.fillRect(px+rnd(0,28),py+rnd(0,28),4,4);}}
+  else if(t===6){drawSprite(CTX,px,py,x*y+x,'FLOOR','#130');CTX.fillStyle=`rgba(0,${80+Math.sin(Date.now()/400+x)*30},${40+Math.sin(Date.now()/300+y)*20},0.6)`;CTX.beginPath();CTX.arc(px+16,py+16+Math.sin(Date.now()/500+x+y)*2,12,0,Math.PI*2);CTX.fill();if(Math.random()<0.04){CTX.fillStyle='#4f4';CTX.beginPath();CTX.arc(px+rnd(8,24),py+rnd(8,24),rnd(2,4),0,Math.PI*2);CTX.fill();}}
+  else if(t===7){drawSprite(CTX,px,py,x*y+x,'FLOOR','#203');CTX.fillStyle=`rgba(200,100,255,${0.2+Math.sin(Date.now()/500+x+y)*0.15})`;CTX.fillRect(px,py,TILE,TILE);CTX.strokeStyle='#e0f';CTX.lineWidth=1;CTX.strokeRect(px+4,py+4,24,24);}
+  else if(t===8){CTX.fillStyle='#000';CTX.fillRect(px,py,TILE,TILE);if(Math.random()<0.02){CTX.fillStyle='#333';CTX.fillRect(px+rnd(0,28),py+rnd(0,28),3,3);}}
+  else if(t===9){drawSprite(CTX,px,py,x*y+x,'FLOOR',C.FLOOR);CTX.strokeStyle='#555';CTX.lineWidth=1;CTX.beginPath();CTX.moveTo(px,py);CTX.lineTo(px+TILE,py+TILE);CTX.moveTo(px+TILE,py);CTX.lineTo(px,py+TILE);CTX.stroke();}
+  else if(t===10){drawSprite(CTX,px,py,x*y+x,'FLOOR',`hsl(${(Date.now()/20+x*10+y*10)%360},60%,20%)`);if(Math.random()<0.1){CTX.fillStyle=`hsl(${rnd(0,360)},100%,50%)`;CTX.fillRect(px+rnd(0,28),py+rnd(0,28),rnd(2,6),rnd(2,6));}}
   else drawSprite(CTX,px,py,x*y+x,'FLOOR',C.FLOOR);
  }
  drawSprite(CTX,game.key.x*TILE,game.key.y*TILE,999,'KEY','#ffd700');drawSprite(CTX,game.exit.x*TILE,game.exit.y*TILE,888,'CHEST',game.p.hasKey?'#333':'#f0f');
@@ -408,6 +464,8 @@ function drawGame(){
  if(game.p.hidden){CTX.restore();if(Math.random()<0.3)addParticle(game.p.x,game.p.y,"...","#888");}
  if(game.timers.poison>0){CTX.fillStyle='#0f0';CTX.fillText('☠️',game.p.x*TILE+20,game.p.y*TILE);}
  if(game.timers.burn>0){CTX.fillStyle='#f60';CTX.fillText('🔥',game.p.x*TILE-5,game.p.y*TILE);}
+ if(game.confused>0){CTX.fillStyle='#ff0';CTX.font='12px serif';CTX.fillText('❓',game.p.x*TILE+10,game.p.y*TILE-5);}
+ if(game.p.falling){CTX.globalAlpha=0.5;CTX.fillStyle='#fff';CTX.fillText('~',game.p.x*TILE+16,game.p.y*TILE+40);CTX.globalAlpha=1;}
  if(game.aiming&&meta.class==='MAGE'){
   let v=hasLOS(game.p.x,game.p.y,game.mouse.x,game.mouse.y);CTX.strokeStyle=v?'#0f0':'#f00';CTX.lineWidth=2;CTX.strokeRect(game.mouse.x*TILE,game.mouse.y*TILE,TILE,TILE);CTX.beginPath();CTX.moveTo(game.p.x*TILE+16,game.p.y*TILE+16);CTX.lineTo(game.mouse.x*TILE+16,game.mouse.y*TILE+16);CTX.stroke();
  }
@@ -500,6 +558,32 @@ function generateShop(){game.shopItems=[];let slots=meta.shopSlots;if(meta.locke
 function respawn(){meta.hp=meta.maxHp;meta.stam=meta.maxStam;meta.mana=meta.maxMana;meta.lockedItems=game.shopItems.filter(i=>i.locked&&!i.purchased).map(i=>({itemName:i.item.name,tierName:i.tier.name,cost:i.cost}));game.mode='GAME';let sl=parseInt($('lvl-slider').value)||1;$('lvl-select').style.display='none';startLevel(sl);}
 function isBlocked(x,y){if(game.map[y][x]===1)return true;if(game.enemies.some(e=>e.x===x&&e.y===y))return true;return false;}
 function checkPickups(){let idx=game.items.findIndex(i=>i.x===game.p.x&&i.y===game.p.y);if(idx>=0){sfx('shop');let item=game.items[idx];game.items.splice(idx,1);if(item.type==='EQUIP'){if(game.inventory.length<10){game.inventory.push(item.val);addParticle(game.p.x,game.p.y,item.val.name,item.val.rarityCol||item.val.col);}else{addParticle(game.p.x,game.p.y,"VOLL!",'#f00');game.items.push(item);return;}}else{if(item.type===0){if(game.timers.poison>0)addParticle(game.p.x,game.p.y,"GIFT BLOCKT!",'#0f0');else{meta.hp=Math.min(meta.hp+5,game.stats.maxHp);addParticle(game.p.x,game.p.y,"HEILUNG",'#0f0');}}if(item.type===1){meta.mana=Math.min(meta.mana+10,game.stats.maxMana);addParticle(game.p.x,game.p.y,"MANA",'#0af');}if(item.type===2){let b=Math.floor((10+game.level*8+Math.pow(game.level,2)*0.5)*game.stats.lootMul);meta.bits+=b;addParticle(game.p.x,game.p.y,`+${b}`,C.BITS);}if(item.type===3&&meta.scrolls<5){meta.scrolls++;addParticle(game.p.x,game.p.y,"RITUAL",'#f60');}}}}
+// Chaos-Biom: UI-Elemente durcheinander würfeln
+function shuffleUI(){
+ let bar=$('ui-bar'),hud=$('hud'),actions=$('actions');
+ // Stat-Reihenfolge mischen
+ let stats=bar.querySelectorAll('div > div');
+ stats.forEach(s=>{s.style.order=rnd(0,10);s.style.transform=`rotate(${rnd(-5,5)}deg)`;});
+ // Button-Reihenfolge mischen
+ let btns=actions.querySelectorAll('button');
+ btns.forEach(b=>{b.style.order=rnd(0,10);});
+ // D-Pad drehen
+ let dpad=$('dpad');
+ dpad.style.transform=`rotate(${[0,90,180,270][rnd(0,3)]}deg)`;
+ // Farben chaotisch
+ document.documentElement.style.setProperty('--accent-color',`hsl(${rnd(0,360)},100%,50%)`);
+ document.documentElement.style.setProperty('--text-color',`hsl(${rnd(30,60)},${rnd(50,100)}%,${rnd(40,70)}%)`);
+ // Nach kurzer Zeit zurücksetzen
+ setTimeout(()=>{
+  stats.forEach(s=>{s.style.order='';s.style.transform='';});
+  btns.forEach(b=>{b.style.order='';});
+  dpad.style.transform='';
+  let B=BIOMES[game.biome];
+  document.documentElement.style.setProperty('--accent-color',B.c[3]);
+  document.documentElement.style.setProperty('--text-color','#c5a059');
+ },3000);
+ addParticle(game.p.x,game.p.y,'UI CHAOS!','#ff0');
+}
 function updateUI(){
  UI.lvl.innerText=game.level;
  let hpTxt=Math.round(meta.hp)+"/"+game.stats.maxHp;if(game.timers.poison>0)hpTxt+=" [GIFT]";if(game.timers.burn>0)hpTxt+=" [FEUER]";if(game.timers.curse>0)hpTxt+=" [FLUCH]";UI.hp.innerText=hpTxt;
