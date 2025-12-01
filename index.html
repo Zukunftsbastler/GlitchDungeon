@@ -19,11 +19,12 @@
         body { background-color: var(--bg-color); color: var(--text-color); font-family: var(--font-serif); display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0; padding: 10px; height: 100vh; overflow: hidden; user-select: none; }
         #start-screen { max-width: 800px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 2rem; animation: fadeIn 2s ease-in; position: absolute; z-index: 10; background: var(--bg-color); height: 100vh; justify-content: center; }
         h1 { font-family: var(--font-display); font-size: 4rem; margin: 0; color: var(--accent-color); text-shadow: 2px 2px 0px #000, 0 0 20px var(--accent-color); animation: pulse 4s infinite ease-in-out, unstable 0.15s infinite; }
+        @media(max-width:480px){h1{font-size:2.5rem}}
         .narrative-box { background: var(--stone-color); padding: 2rem; border: 1px solid #333; border-radius: 4px; box-shadow: inset 0 0 50px rgba(0,0,0,0.8), var(--shadow-glow); max-width: 600px; font-size: 1.3rem; line-height: 1.6; color: #ccc; position: relative; text-align: center; }
         .narrative-box::before, .narrative-box::after { content: "†"; font-size: 2rem; color: var(--accent-color); display: block; margin: 0 auto; opacity: 0.7; }
         .narrative-box::before { margin-bottom: 0.5rem; }
         .narrative-box::after { margin-top: 0.5rem; transform: rotate(180deg); }
-        .class-select { display: flex; gap: 20px; margin-top: 1rem; }
+        .class-select { display: flex; gap: 20px; margin-top: 1rem; flex-wrap: wrap; justify-content: center; }
         .btn-class { background: rgba(0,0,0,0.8); border: 1px solid #555; color: #888; padding: 15px; width: 140px; cursor: pointer; text-align: center; transition: all 0.3s; display: flex; flex-direction: column; gap: 5px; }
         .btn-class:hover { border-color: var(--accent-color); color: var(--text-color); transform: translateY(-5px); box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
         .c-name { font-family: var(--font-display); font-size: 1.2rem; color: var(--accent-color); }
@@ -33,7 +34,7 @@
         #game-wrapper { display: none; flex-direction: column; align-items: center; opacity: 0; transition: opacity 2s ease-in; }
         #ui-bar { width: 100%; max-width: 640px; display: flex; flex-wrap: wrap; justify-content: space-between; margin-bottom: 10px; font-family: var(--font-display); font-size: 18px; color: var(--text-color); border-bottom: 1px solid #333; padding-bottom: 5px; }
         .stat-row { width: 100%; display: flex; justify-content: space-between; margin-top: 5px; font-size: 0.8em; }
-        canvas { border: 4px solid #1f1f1f; background: #000; image-rendering: pixelated; box-shadow: 0 0 30px rgba(0, 0, 0, 0.8); max-width: 100vw; height: auto; }
+        canvas { border: 4px solid #1f1f1f; background: #000; image-rendering: pixelated; box-shadow: 0 0 30px rgba(0, 0, 0, 0.8); width: 100%; max-width: 100%; height: auto; }
         #ui-target { width: 100%; max-width: 640px; text-align: center; font-family: var(--font-display); font-size: 16px; margin-bottom: 5px; min-height: 20px; }
         #btn-reincarnate { display: block; background: #000; color: #8a0b0b; border: 1px solid #8a0b0b; padding: 8px 16px; font-family: var(--font-display); font-size: 1.1rem; cursor: pointer; box-shadow: 0 0 10px #8a0b0b; margin-top: 5px; pointer-events: auto; }
         #btn-reincarnate:hover { background: #8a0b0b; color: #000; }
@@ -140,6 +141,7 @@
 
 <script>
 const $=id=>document.getElementById(id);
+const esc=s=>(s+'').replace(/[<>"'&]/g,c=>({'<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','&':'&amp;'}[c]));
 const TILE=32,GRID=20,UI={lvl:$('ui-lvl'),hp:$('ui-hp'),key:$('ui-key'),glitch:$('ui-glitch'),bits:$('ui-bits'),scrolls:$('ui-scrolls'),mana:$('ui-mana'),stam:$('ui-stam'),cls:$('ui-class'),target:$('ui-target')};
 let actx; function au(){if(!actx){actx=new(window.AudioContext||window.webkitAudioContext)();actx.resume()}}
 const CVS=$('cvs'),CTX=CVS.getContext('2d'),L_CVS=document.createElement('canvas');L_CVS.width=640;L_CVS.height=640;const L_CTX=L_CVS.getContext('2d');
@@ -220,12 +222,12 @@ const ITEM_POOL=[
 
 // --- STATE ---
 let meta={bits:0,hp:10,maxHp:10,mana:10,maxMana:10,stam:10,maxStam:10,dmg:1,mine:1,noise:5,speed:10,def:0,manaRegen:0,stamRegen:1,class:'WARRIOR',critChance:0.05,dodgeChance:0.05,lootMul:1.0,glitchMod:0,scrolls:0,torchCount:2,torchRadius:150,maxLvl:1,shopSlots:3,shopLuck:0,lockedItems:[],spellDmg:0,stealthCost:5,stealthDrain:3};
-if(localStorage.getItem('GD4_Dark_Save')){let s=JSON.parse(localStorage.getItem('GD4_Dark_Save'));meta.bits=s.bits;meta.maxLvl=s.maxLvl;meta.shopSlots=s.shopSlots;meta.shopLuck=s.shopLuck;}
+if(localStorage.getItem('GD4_Dark_Save')){try{let s=JSON.parse(localStorage.getItem('GD4_Dark_Save'));meta.bits=s.bits;meta.maxLvl=s.maxLvl;meta.shopSlots=s.shopSlots;meta.shopLuck=s.shopLuck;}catch(e){localStorage.removeItem('GD4_Dark_Save');}}
 let game={invMode:0,mode:'GAME',map:[],walls:new Uint8Array(GRID*GRID),level:1,biome:0,p:{x:1,y:1,en:0,dir:{x:0,y:1},hidden:false},enemies:[],items:[],particles:[],shopItems:[],torches:[],inventory:[],equipment:{WEAPON:null,ARMOR:null,RELIC:null},stats:{},key:{x:0,y:0},exit:{x:0,y:0},timers:{glitch:25,stun:0,shake:0,poison:0,burn:0},lockMode:false,rerollCost:10,lockInput:false,aiming:false,mouse:{x:0,y:0}};
 
 // --- LOGIC ---
 const cb=$('class-btns');
-Object.keys(CLASSES).forEach(k=>{let c=CLASSES[k];cb.innerHTML+=`<div class="btn-class" onclick="enterDungeon('${k}')"><span class="c-name">${c.n}</span><span class="c-desc">${c.desc}</span></div>`;});
+Object.keys(CLASSES).forEach(k=>{let c=CLASSES[k];cb.innerHTML+=`<div class="btn-class" onclick="enterDungeon('${k}')"><span class="c-name">${esc(c.n)}</span><span class="c-desc">${esc(c.desc)}</span></div>`;});
 
 function enterDungeon(k){
  let c=CLASSES[k];Object.assign(meta,{class:k,hp:c.hp,maxHp:c.hp,mana:c.mana,maxMana:c.mana,stam:c.stam,maxStam:c.stam,mine:c.mine,noise:c.noise,speed:c.spd,dmg:1});
@@ -535,12 +537,13 @@ function inv_toggle(){let el=$('inv-screen');if(el.style.display==='block'){el.s
 function cycleInvMode(){game.invMode=(game.mode==='SHOP')?((game.invMode===0)?2:0):((game.invMode===0)?1:0);updateInvModeUI();}
 function updateInvModeUI(){let btn=$('inv-mode-btn'),grid=$('inv-display');grid.className='inv-grid';if(game.invMode===0){btn.innerText="MODUS: AUSRÜSTEN";btn.style.color="#ccc";btn.style.borderColor="#555";}else if(game.invMode===1){btn.innerText="MODUS: MÜLL (LÖSCHEN!)";btn.style.color="#f00";btn.style.borderColor="#f00";grid.classList.add('mode-trash');}else if(game.invMode===2){btn.innerText="MODUS: VERKAUFEN";btn.style.color="#ffd700";btn.style.borderColor="#ffd700";grid.classList.add('mode-sell');}}
 function renderInv(){
- let h='';['WEAPON','ARMOR','RELIC'].forEach(s=>{let it=game.equipment[s],st=it?`border-color:${it.rarityCol||'#333'};box-shadow:0 0 8px ${it.rarityCol||'#000'};`:'';h+=`<div class="inv-slot ${it?'equipped':''}" style="${st}" onclick="inv_unequip('${s}')"><div class="equip-slot-label">${s}</div>${it?`<div style="color:${it.col}">${it.name}</div>${renderMods(it)}`:'<span style="color:#333">LEER</span>'}</div>`;});$('equip-display').innerHTML=h;h='';
+ let h='';['WEAPON','ARMOR','RELIC'].forEach(s=>{let it=game.equipment[s],st=it?`border-color:${it.rarityCol||'#333'};box-shadow:0 0 8px ${it.rarityCol||'#000'};`:'';h+=`<div class="inv-slot ${it?'equipped':''}" style="${st}" onclick="inv_unequip('${s}')"><div class="equip-slot-label">${s}</div>${it?`<div style="color:${it.col}">${esc(it.name)}</div>${renderMods(it)}`:'<span style="color:#333">LEER</span>'}</div>`;});$('equip-display').innerHTML=h;h='';
  game.inventory.forEach((it,i)=>{
   let st=`border-color:${it.rarityCol||'#333'};box-shadow:0 0 5px ${it.rarityCol||'#000'};`;
   let cnt=it.count>1?`<div style="position:absolute;top:0;right:0;background:rgba(0,0,0,0.8);color:#fff;font-size:10px;padding:1px 3px;">x${it.count}</div>`:'';
-  h+=`<div class="inv-slot" style="${st}" onclick="inv_action(${i})">${cnt}<div style="color:${it.col}">${it.name}</div>${renderMods(it)}</div>`;
+  h+=`<div class="inv-slot" style="${st}" onclick="inv_action(${i})">${cnt}<div style="color:${it.col}">${esc(it.name)}</div>${renderMods(it)}</div>`;
  });$('inv-display').innerHTML=h;
+ document.querySelectorAll('.inv-slot').forEach(s=>{let tt=s.querySelector('.inv-tooltip');if(!tt)return;s.ontouchstart=e=>{s.th=setTimeout(()=>{tt.style.display='block'},500)};s.ontouchend=e=>{clearTimeout(s.th);tt.style.display=''};});
 }
 function renderMods(it){
  let bonus='',m=meta.class;if(m===it.target)bonus=`<br><span style="color:#0f0">KLASSEN-BONUS!</span>`;
@@ -572,9 +575,9 @@ CVS.onclick=e=>{au();let rect=CVS.getBoundingClientRect();if(game.mode==='SHOP')
 function castFireball(tx,ty){if(meta.mana<5){addParticle(game.p.x,game.p.y,"KEIN MANA",'#0af');game.aiming=false;updateUI();return;}if(!hasLOS(game.p.x,game.p.y,tx,ty)){addParticle(tx,ty,"BLOCKIERT",'#f00');return;}meta.mana-=5;sfx('glitch');game.aiming=false;updateUI();let t=game.enemies.find(e=>e.x===tx&&e.y===ty);if(t){hurt(t,game.stats.dmg*1.5+(game.stats.spellDmg||0)*3,false);if(t.hp>0)t.state='HUNT';}else addParticle(tx,ty,"BOOM!",'#f60');for(let sy=-1;sy<=1;sy++)for(let sx=-1;sx<=1;sx++){if(sx===0&&sy===0)continue;let st=game.enemies.find(e=>e.x===tx+sx&&e.y===ty+sy);if(st){hurt(st,Math.floor(game.stats.dmg),false,`SPLASH -${Math.floor(game.stats.dmg)}`,'#f60');}}game.p.energy-=100;processTurns();}
 function hasLOS(x0,y0,x1,y1){let dx=Math.abs(x1-x0),dy=Math.abs(y1-y0),sx=(x0<x1)?1:-1,sy=(y0<y1)?1:-1,err=dx-dy;while(true){if(x0===x1&&y0===y1)return true;if(game.map[y0][x0]===1)return false;let e2=2*err;if(e2>-dy){err-=dy;x0+=sx;}if(e2<dx){err+=dx;y0+=sy;}}}
 function stepTowards(tx,ty){let dx=Math.sign(tx-game.p.x),dy=Math.sign(ty-game.p.y);if(dx!==0&&dy!==0){if(Math.abs(tx-game.p.x)>Math.abs(ty-game.p.y))dy=0;else dx=0;}movePlayer(dx,dy)&&endTurn();}
-document.onmousemove=e=>{let txt=e.target.dataset.t||'';if(e.target.id==='cvs'){let r=CVS.getBoundingClientRect(),s=640/r.height,mx=(e.clientX-r.left)*s,my=(e.clientY-r.top)*s;if(game.mode==='SHOP'){let i=Math.floor((my-115)/40),o=game.shopItems[i];if(o){if(o.purchased)txt="Bereits erworben";else{let v=o.item.calc(o.tier),eff=o.item.unit==='%'?`+${Math.round(v*100)}%`:`+${v} ${o.item.unit}`;txt=`${o.item.name}\n${o.tier.name} | ${eff}`;}}}else{let x=(mx/TILE)|0,y=(my/TILE)|0;game.mouse={x,y};let t=game.enemies.find(e=>e.x===x&&e.y===y),i=game.items.find(e=>e.x===x&&e.y===y),w=game.walls[y*GRID+x];if(t)txt=`${t.name}\nHP:${t.hp}/${t.max} ATK:${t.dmg}`;else if(i)txt=i.val?`${i.val.name}\n${Object.keys(i.val.mods).join(',')}`:['HP+','MANA+','GOLD','ROLLE'][i.type];else if(w>0)txt=`Mauer (${(w|0)})`;else if(x===game.key.x&&y===game.key.y)txt='Schlüssel';else if(x===game.exit.x&&y===game.exit.y)txt=`Ausgang ${game.p.hasKey?'(Offen)':'(Zu)'}`;}}let el=$('tt');if(txt){el.style.display='block';el.style.left=(e.clientX+15)+'px';el.style.top=(e.clientY+15)+'px';el.innerText=txt;}else el.style.display='none';};
-let ts;CVS.ontouchstart=e=>{ts={x:e.touches[0].clientX,y:e.touches[0].clientY};e.preventDefault();};
-CVS.ontouchend=e=>{let d=40,dx=e.changedTouches[0].clientX-ts.x,dy=e.changedTouches[0].clientY-ts.y;Math.abs(dx)>d||Math.abs(dy)>d?act(Math.abs(dx)>Math.abs(dy)?(dx>0?'R':'L'):(dy>0?'D':'U')):null};
+document.onmousemove=e=>{let txt=e.target.dataset.t||'';if(e.target.id==='cvs'){let r=CVS.getBoundingClientRect(),s=640/r.height,mx=(e.clientX-r.left)*s,my=(e.clientY-r.top)*s;if(game.mode==='SHOP'){let i=Math.floor((my-115)/40),o=game.shopItems[i];if(o){if(o.purchased)txt="Bereits erworben";else{let v=o.item.calc(o.tier),eff=o.item.unit==='%'?`+${Math.round(v*100)}%`:`+${v} ${o.item.unit}`;txt=`${o.item.name}\n${o.tier.name} | ${eff}`;}}}else{let x=(mx/TILE)|0,y=(my/TILE)|0;game.mouse={x,y};let t=game.enemies.find(e=>e.x===x&&e.y===y),i=game.items.find(e=>e.x===x&&e.y===y),w=(x>=0&&x<GRID&&y>=0&&y<GRID)?game.walls[y*GRID+x]:0;if(t)txt=`${t.name}\nHP:${t.hp}/${t.max} ATK:${t.dmg}`;else if(i)txt=i.val?`${i.val.name}\n${Object.keys(i.val.mods).join(',')}`:['HP+','MANA+','GOLD','ROLLE'][i.type];else if(w>0)txt=`Mauer (${(w|0)})`;else if(x===game.key.x&&y===game.key.y)txt='Schlüssel';else if(x===game.exit.x&&y===game.exit.y)txt=`Ausgang ${game.p.hasKey?'(Offen)':'(Zu)'}`;}}let el=$('tt');if(txt){el.style.display='block';el.style.left=(e.clientX+15)+'px';el.style.top=(e.clientY+15)+'px';el.innerText=txt;}else el.style.display='none';};
+let ts;CVS.ontouchstart=e=>{ts={x:e.touches[0].clientX,y:e.touches[0].clientY};if(e.cancelable)e.preventDefault();};
+CVS.ontouchend=e=>{let d=40,dx=e.changedTouches[0].clientX-ts.x,dy=e.changedTouches[0].clientY-ts.y;if(Math.abs(dx)>d||Math.abs(dy)>d)act(Math.abs(dx)>Math.abs(dy)?(dx>0?'R':'L'):(dy>0?'D':'U'));else CVS.onclick({clientX:e.changedTouches[0].clientX,clientY:e.changedTouches[0].clientY})};
 </script>
 </body>
 </html>
