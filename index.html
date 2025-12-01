@@ -18,7 +18,7 @@
         }
         body { background-color: var(--bg-color); color: var(--text-color); font-family: var(--font-serif); display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0; padding: 10px; height: 100vh; overflow: hidden; user-select: none; }
         #start-screen { max-width: 800px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 2rem; animation: fadeIn 2s ease-in; position: absolute; z-index: 10; background: var(--bg-color); height: 100vh; justify-content: center; }
-        h1 { font-family: var(--font-display); font-size: 4rem; margin: 0; color: var(--accent-color); text-shadow: 2px 2px 0px #000, 0 0 20px var(--accent-color); animation: pulse 4s infinite ease-in-out, unstable 0.15s infinite; }
+        h1 { font-family: var(--font-display); font-size: 4rem; margin: 0; text-align: center; color: var(--accent-color); text-shadow: 2px 2px 0px #000, 0 0 20px var(--accent-color); animation: pulse 4s infinite ease-in-out, unstable 0.15s infinite; }
         @media(max-width:480px){h1{font-size:2.5rem}}
         .narrative-box { background: var(--stone-color); padding: 2rem; border: 1px solid #333; border-radius: 4px; box-shadow: inset 0 0 50px rgba(0,0,0,0.8), var(--shadow-glow); max-width: 600px; font-size: 1.3rem; line-height: 1.6; color: #ccc; position: relative; text-align: center; }
         .narrative-box::before, .narrative-box::after { content: "†"; font-size: 2rem; color: var(--accent-color); display: block; margin: 0 auto; opacity: 0.7; }
@@ -604,7 +604,7 @@ function enemyAct(e){
  
  if(!checkAggro(e)){if(e.state!=='SLEEP'&&Math.random()<0.2){let dx=rnd(-1,1),dy=rnd(-1,1);if(!isBlocked(e.x+dx,e.y+dy)){e.x+=dx;e.y+=dy;}}return;}
  let dx=Math.sign(game.p.x-e.x),dy=Math.sign(game.p.y-e.y),nx=e.x+dx,ny=e.y+dy;
- if(isBlocked(nx,ny)){if(!isBlocked(e.x+dx,e.y))nx=e.x+dx;else if(!isBlocked(e.x,e.y+dy)){nx=e.x;ny=e.y+dy;}else return;}
+ if(isBlocked(nx,ny)){if(!isBlocked(e.x+dx,e.y)){nx=e.x+dx;ny=e.y;}else if(!isBlocked(e.x,e.y+dy)){nx=e.x;ny=e.y+dy;}else return;}
  if(nx===game.p.x&&ny===game.p.y){
   if(Math.random()<game.stats.dodgeChance)addParticle(game.p.x,game.p.y,"AUSGEWICHEN",'#aaa');
   else{
@@ -688,7 +688,7 @@ function bossAct(b){
  if(b.bossType==='CHARGE'&&b.charging)return;
  
  let dx=Math.sign(game.p.x-b.x),dy=Math.sign(game.p.y-b.y),nx=b.x+dx,ny=b.y+dy;
- if(isBlocked(nx,ny)){if(!isBlocked(b.x+dx,b.y)){ny=b.y;}else if(!isBlocked(b.x,b.y+dy)){nx=b.x;}else return;}
+ if(isBlocked(nx,ny)){if(!isBlocked(b.x+dx,b.y)){nx=b.x+dx;ny=b.y;}else if(!isBlocked(b.x,b.y+dy)){nx=b.x;ny=b.y+dy;}else return;}
  
  if(nx===game.p.x&&ny===game.p.y){
   if(Math.random()<game.stats.dodgeChance)addParticle(game.p.x,game.p.y,"AUSGEWICHEN",'#aaa');
