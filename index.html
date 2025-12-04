@@ -42,7 +42,7 @@
         @keyframes pulse { 0%, 100% { text-shadow: 2px 2px 0px #000, 0 0 20px var(--accent-color); } 50% { text-shadow: 2px 2px 0px #000, 0 0 10px var(--accent-color); opacity: 0.9; } }
         @keyframes unstable { 0% { transform: translate(0,0); } 20% { transform: translate(-1px, 1px); } 40% { transform: translate(1px, -1px); } 60% { transform: translate(-1px, 0); } 80% { transform: translate(1px, 1px); } 100% { transform: translate(0,0); } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        #inv-screen { display:none; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:95vw; max-width:700px; background:#0a0a0a; border:2px solid var(--accent-color); padding:20px; color:var(--text-color); font-family:var(--font-serif); z-index:100; box-shadow: 0 0 30px #000; box-sizing: border-box; }
+        #inv-screen { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:#0a0a0a; border:2px solid var(--accent-color); padding:15px; color:var(--text-color); font-family:var(--font-serif); z-index:100; box-shadow: 0 0 30px #000; box-sizing:border-box; overflow-y:auto; -webkit-overflow-scrolling:touch; }
         .inv-grid { display:grid; grid-template-columns:repeat(5, 1fr); gap:8px; margin-top:15px; }
         .inv-slot { height:70px; border:1px solid #333; background:#111; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; font-size:11px; text-align:center; position:relative; padding:2px; transition:border-color 0.2s; }
         .inv-slot:hover { border-color:#fff; background:#1a1a1a; }
@@ -80,6 +80,9 @@
         .inv-tab { flex:1; background:#111; border:1px solid #444; color:#888; padding:8px 4px; text-align:center; cursor:pointer; font-family:var(--font-display); font-size:0.8rem; transition:all 0.2s; }
         .inv-tab:hover { border-color:#888; color:#ccc; }
         .inv-tab.active { border-color:var(--accent-color); color:var(--accent-color); background:#1a0a0a; }
+        .inv-close { position:sticky; top:0; right:0; float:right; background:#300; border:2px solid #a00; color:#f66; width:44px; height:44px; font-size:1.8rem; cursor:pointer; z-index:101; display:flex; align-items:center; justify-content:center; margin:-5px -5px 10px 10px; }
+        .inv-close:hover { background:#500; color:#fff; }
+        .inv-inner { max-width:700px; margin:0 auto; }
         .grim-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; max-height:55vh; overflow-y:auto; }
         .grim-entry { border:1px solid #222; background:#0a0a0a; padding:6px; font-size:10px; text-align:center; min-height:50px; display:flex; flex-direction:column; justify-content:center; }
         .grim-entry.found { border-color:#4a4; background:#0a1a0a; }
@@ -96,6 +99,7 @@
         .inv-main { display:flex; gap:15px; }
         .inv-left { flex:1; }
         .inv-right { width:140px; border-left:1px solid #333; padding-left:15px; }
+        @media(max-width:600px){ .inv-main{flex-direction:column;} .inv-right{width:100%;border-left:none;border-top:1px solid #333;padding:15px 0 0 0;} .inv-grid{grid-template-columns:repeat(4,1fr);} }
         .passive-slots { display:flex; flex-direction:column; gap:6px; }
         .passive-slot { height:50px; border:1px solid #444; background:#0a0a0a; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; font-size:9px; text-align:center; position:relative; transition:all 0.2s; }
         .passive-slot:hover { border-color:#0af; background:#0a1a1a; }
@@ -110,7 +114,9 @@
     </style>
 </head>
 <body>
-<div id="inv-screen">
+<div id="inv-screen" ontouchstart="event.stopPropagation()" ontouchmove="event.stopPropagation()" ontouchend="event.stopPropagation()">
+    <button class="inv-close" onclick="inv_toggle()">✕</button>
+    <div class="inv-inner">
     <div class="inv-tabs">
         <div class="inv-tab active" onclick="invTab(0)">AUSRÜSTUNG</div>
         <div class="inv-tab" onclick="invTab(1)">GRIMOIRE</div>
@@ -136,6 +142,7 @@
     </div>
     <div id="inv-content-1" style="display:none"></div>
     <div id="inv-content-2" style="display:none"></div>
+    </div>
 </div>
 <div id="start-screen">
     <h1>The Glitch Dungeon</h1>
@@ -281,25 +288,25 @@ const TILE_FX={
 // === BOSS SYSTEM ===
 const BOSSES=[
  // Lvl 5: Katakomben - TITAN (hohe HP/DMG, langsam)
- {n:"Knochenfürst",type:'TITAN',hp:80,dmg:8,spd:5,col:'#eee',hint:"EIN GIGANT AUS KNOCHEN.",desc:"Langsam aber tödlich. Hit & Run!"},
+ {n:"Knochenfürst",type:'TITAN',hp:150,dmg:10,spd:3,col:'#eee',hint:"EIN GIGANT AUS KNOCHEN.",desc:"Langsam aber tödlich. Hit & Run!"},
  // Lvl 10: Eishöhle - AURA (Kälte-Zyklus)
- {n:"Yeti-Matriarchin",type:'AURA',hp:100,dmg:10,spd:6,col:'#8ff',hint:"DEIN ATEM GEFRIERT.",desc:"Kälte-Aura lädt auf! Fliehe wenn sie aktiv wird.",auraRadius:3,auraStamDrain:4,auraCycle:8,auraWarn:2},
+ {n:"Yeti-Matriarchin",type:'AURA',hp:180,dmg:12,spd:4,col:'#8ff',hint:"DEIN ATEM GEFRIERT.",desc:"Kälte-Aura lädt auf! Fliehe wenn sie aktiv wird.",auraRadius:4,auraStamDrain:5,auraCycle:8,auraWarn:2},
  // Lvl 15: Sumpf - SPLIT (spawnt Minions)
- {n:"Hydra-Blob",type:'SPLIT',hp:90,dmg:7,spd:7,col:'#4a2',hint:"SCHNEID EINEN KOPF AB...",desc:"Spawnt Schleime bei Schaden! Fokus-Schaden!",splitChance:0.5,splitMax:6},
+ {n:"Hydra-Blob",type:'SPLIT',hp:160,dmg:9,spd:5,col:'#4a2',hint:"SCHNEID EINEN KOPF AB...",desc:"Spawnt Schleime bei Schaden! Fokus-Schaden!",splitChance:0.5,splitMax:8},
  // Lvl 20: Vulkan - TRAIL (temporäre Lava)
- {n:"Magma-Wurm",type:'TRAIL',hp:120,dmg:12,spd:8,col:'#f60',hint:"DER BODEN WIRD LAVA.",desc:"Hinterlässt Lava! Töte ihn schnell!",trailDuration:5},
+ {n:"Magma-Wurm",type:'TRAIL',hp:200,dmg:15,spd:6,col:'#f60',hint:"DER BODEN WIRD LAVA.",desc:"Hinterlässt Lava! Töte ihn schnell!",trailDuration:6},
  // Lvl 25: Astral - PHASE (Teleport + Mana Drain)
- {n:"Der Beobachter",type:'PHASE',hp:80,dmg:6,spd:9,col:'#f0f',hint:"ER IST ÜBERALL.",desc:"Teleportiert! Mana Drain in Phase 2!",rangedDmg:4,drainRadius:4,drainAmount:3},
+ {n:"Der Beobachter",type:'PHASE',hp:140,dmg:8,spd:7,col:'#f0f',hint:"ER IST ÜBERALL.",desc:"Teleportiert! Mana Drain in Phase 2!",rangedDmg:5,drainRadius:5,drainAmount:4},
  // Lvl 30: Nekro - SUMMON (Skelette + Mana Steal)
- {n:"Lich-König",type:'SUMMON',hp:100,dmg:8,spd:6,col:'#0f0',hint:"DER TOD GEHORCHT IHM.",desc:"Beschwört Skelette! Stiehlt Mana zur Heilung!",summonCD:4,maxSummons:4,manaSteal:5},
+ {n:"Lich-König",type:'SUMMON',hp:180,dmg:10,spd:6,col:'#0f0',hint:"DER TOD GEHORCHT IHM.",desc:"Beschwört Skelette! Stiehlt Mana zur Heilung!",summonCD:3,maxSummons:5,manaSteal:6},
  // Lvl 35: Kristall - REFLECT
- {n:"Prisma-Golem",type:'REFLECT',hp:150,dmg:10,spd:4,col:'#e0f',hint:"DAS LICHT BRICHT SICH.",desc:"Reflektiert 30% Schaden! Zauber verstärkt!",reflectChance:0.3},
+ {n:"Prisma-Golem",type:'REFLECT',hp:250,dmg:12,spd:4,col:'#e0f',hint:"DAS LICHT BRICHT SICH.",desc:"Reflektiert 30% Schaden! Zauber verstärkt!",reflectChance:0.35},
  // Lvl 40: Leere - VOID (Arena schrumpft)
- {n:"Nihil",type:'VOID',hp:90,dmg:9,spd:7,col:'#fff',hint:"DIE LEERE VERSCHLINGT.",desc:"Sichere Felder schrumpfen!",voidInterval:3},
+ {n:"Nihil",type:'VOID',hp:160,dmg:11,spd:7,col:'#fff',hint:"DIE LEERE VERSCHLINGT.",desc:"Sichere Felder schrumpfen!",voidInterval:2},
  // Lvl 45: Labyrinth - CHARGE (Sturmangriff)
- {n:"Minotaurus",type:'CHARGE',hp:130,dmg:15,spd:5,col:'#a52',hint:"ER STÜRMT AUF DICH ZU.",desc:"Lädt auf und stürmt! Ausweichen!",chargeCD:4,chargeSteps:6},
+ {n:"Minotaurus",type:'CHARGE',hp:220,dmg:18,spd:5,col:'#a52',hint:"ER STÜRMT AUF DICH ZU.",desc:"Lädt auf und stürmt! Ausweichen!",chargeCD:3,chargeSteps:8},
  // Lvl 50: Chaos - RANDOM (alle Mechaniken)
- {n:"Glitch-Avatar",type:'RANDOM',hp:150,dmg:12,spd:9,col:'RAINBOW',hint:"?!? DIE REALITÄT BRICHT ?!?",desc:"Wechselt zufällig alle Boss-Mechaniken!",mechInterval:5}
+ {n:"Glitch-Avatar",type:'RANDOM',hp:280,dmg:14,spd:9,col:'RAINBOW',hint:"?!? DIE REALITÄT BRICHT ?!?",desc:"Wechselt zufällig alle Boss-Mechaniken!",mechInterval:4}
 ];
 
 function getFreeNear(cx,cy){for(let i=0;i<20;i++){let x=cx+rnd(-2,2),y=cy+rnd(-2,2);if(x>0&&x<GRID-1&&y>0&&y<GRID-1&&game.map[y][x]!==1&&!game.enemies.some(e=>e.x===x&&e.y===y)&&!(x===game.p.x&&y===game.p.y))return{x,y};}return null;}
@@ -875,9 +882,9 @@ function enemyAct(e){
   }
  }
  
- if(!checkAggro(e)){if(e.state!=='SLEEP'&&Math.random()<0.2){let dx=rnd(-1,1),dy=rnd(-1,1);if(!isBlocked(e.x+dx,e.y+dy)){e.x+=dx;e.y+=dy;}}return;}
+ if(!checkAggro(e)){if(e.state!=='SLEEP'&&Math.random()<0.2){let dx=rnd(-1,1),dy=rnd(-1,1);if(!isBlocked(e.x+dx,e.y+dy,e)){e.x+=dx;e.y+=dy;}}return;}
  let dx=Math.sign(game.p.x-e.x),dy=Math.sign(game.p.y-e.y),nx=e.x+dx,ny=e.y+dy;
- if(isBlocked(nx,ny)){if(!isBlocked(e.x+dx,e.y)){nx=e.x+dx;ny=e.y;}else if(!isBlocked(e.x,e.y+dy)){nx=e.x;ny=e.y+dy;}else return;}
+ if(isBlocked(nx,ny,e)){if(!isBlocked(e.x+dx,e.y,e)){nx=e.x+dx;ny=e.y;}else if(!isBlocked(e.x,e.y+dy,e)){nx=e.x;ny=e.y+dy;}else return;}
  if(nx===game.p.x&&ny===game.p.y){
   if(Math.random()<game.stats.dodgeChance)addParticle(game.p.x,game.p.y,"AUSGEWICHEN",'#aaa');
   else{
@@ -960,17 +967,24 @@ function bossAct(b){
  // Standard-Bewegung (außer bei CHARGE)
  if(b.bossType==='CHARGE'&&b.charging)return;
  
- let dx=Math.sign(game.p.x-b.x),dy=Math.sign(game.p.y-b.y),nx=b.x+dx,ny=b.y+dy;
- if(isBlocked(nx,ny)){if(!isBlocked(b.x+dx,b.y)){nx=b.x+dx;ny=b.y;}else if(!isBlocked(b.x,b.y+dy)){nx=b.x;ny=b.y+dy;}else return;}
- 
- if(nx===game.p.x&&ny===game.p.y){
+ // Boss Nahkampf-Check: Spieler neben Boss-Hitbox (3x3)?
+ let pDist=Math.max(Math.abs(game.p.x-b.x),Math.abs(game.p.y-b.y));
+ if(pDist<=2){
+  // Spieler in Angriffsreichweite!
   if(Math.random()<game.stats.dodgeChance)addParticle(game.p.x,game.p.y,"AUSGEWICHEN",'#aaa');
   else{let dmg=Math.max(1,b.dmg-(game.stats.def||0));hurt(game.p,dmg,true);}
- }else{
-  b.x=nx;b.y=ny;
-  // Trail-Mechanik
-  if(b.bossType==='TRAIL'&&game.map[oy][ox]!==1&&game.map[oy][ox]!==4){game.map[oy][ox]=4;b.trailTiles.push({x:ox,y:oy,life:bd.trailDuration});}
+  return;
  }
+ 
+ let dx=Math.sign(game.p.x-b.x),dy=Math.sign(game.p.y-b.y),nx=b.x+dx,ny=b.y+dy;
+ if(isBlocked(nx,ny,b)){if(!isBlocked(b.x+dx,b.y,b)){nx=b.x+dx;ny=b.y;}else if(!isBlocked(b.x,b.y+dy,b)){nx=b.x;ny=b.y+dy;}else return;}
+ 
+ // Arena-Grenzen für Boss (bleibt innerhalb)
+ if(nx<4||nx>GRID-5||ny<4||ny>GRID-5)return;
+ 
+ b.x=nx;b.y=ny;
+ // Trail-Mechanik
+ if(b.bossType==='TRAIL'&&game.map[oy][ox]!==1&&game.map[oy][ox]!==4){game.map[oy][ox]=4;b.trailTiles.push({x:ox,y:oy,life:bd.trailDuration});}
 }
 function turnLogic(){
  // Tutorial-Trigger bei Schlüssel-Aufheben
@@ -1060,8 +1074,27 @@ function drawGame(){
  });
  game.enemies.forEach((e,idx)=>{
   if(e.fx==='BURN'&&Math.random()<0.1)addParticle(e.x,e.y,'~','#f40',0.5);if(e.fx==='POISON'&&Math.random()<0.05)addParticle(e.x,e.y,'o','#0f0',0.3);
-  drawSprite(CTX,e.x*TILE,e.y*TILE,(e.x+e.y+idx)*10,e.type,e.col||`hsl(${e.hue},60%,50%)`);
-  CTX.fillStyle='red';CTX.fillRect(e.x*TILE,e.y*TILE-8,32,2);CTX.fillStyle='#0f0';CTX.fillRect(e.x*TILE,e.y*TILE-8,32*(e.hp/e.max),2);
+  if(e.isBoss){
+   // Boss: 3x3 Tiles groß, zentriert auf Position
+   let bx=e.x*TILE-TILE,by=e.y*TILE-TILE,bs=TILE*3,col=e.col==='RAINBOW'?`hsl(${Date.now()/10%360},100%,50%)`:e.col;
+   CTX.save();CTX.translate(bx+bs/2,by+bs/2);CTX.rotate(Math.sin(Date.now()/500)*0.05);CTX.translate(-bs/2,-bs/2);
+   // Schatten/Aura
+   CTX.fillStyle=`${col}33`;CTX.beginPath();CTX.arc(bs/2,bs/2,bs/2+8+Math.sin(Date.now()/200)*4,0,Math.PI*2);CTX.fill();
+   // Körper
+   CTX.fillStyle=col;CTX.fillRect(8,8,bs-16,bs-16);
+   // Gesicht/Details basierend auf Boss-Typ
+   CTX.fillStyle='#000';
+   if(e.bossType==='TITAN'){CTX.fillRect(bs*0.25,bs*0.3,bs*0.15,bs*0.15);CTX.fillRect(bs*0.6,bs*0.3,bs*0.15,bs*0.15);CTX.fillRect(bs*0.3,bs*0.6,bs*0.4,bs*0.1);}
+   else if(e.bossType==='VOID'){CTX.beginPath();CTX.arc(bs/2,bs/2,bs*0.25,0,Math.PI*2);CTX.fill();}
+   else{CTX.fillRect(bs*0.2,bs*0.35,bs*0.2,bs*0.1);CTX.fillRect(bs*0.6,bs*0.35,bs*0.2,bs*0.1);}
+   // Glüheffekt
+   if(e.charging){CTX.strokeStyle='#f00';CTX.lineWidth=4;CTX.strokeRect(4,4,bs-8,bs-8);}
+   CTX.restore();
+  }else{
+   drawSprite(CTX,e.x*TILE,e.y*TILE,(e.x+e.y+idx)*10,e.type,e.col||`hsl(${e.hue},60%,50%)`);
+  }
+  // HP-Balken (für Boss größer und über dem Sprite)
+  if(!e.isBoss){CTX.fillStyle='red';CTX.fillRect(e.x*TILE,e.y*TILE-8,32,2);CTX.fillStyle='#0f0';CTX.fillRect(e.x*TILE,e.y*TILE-8,32*(e.hp/e.max),2);}
   if(e.stun>0){CTX.fillStyle='#fff';CTX.fillText('💫',e.x*TILE+8,e.y*TILE-10);}
  });
  if(game.p.hidden){CTX.save();CTX.globalAlpha=0.5;}drawSprite(CTX,game.p.x*TILE,game.p.y*TILE,1337,'HERO',C.PL);
@@ -1384,7 +1417,7 @@ function respawn(){
  }
  $('lvl-select').style.display='none';startLevel(sl);
 }
-function isBlocked(x,y){if(game.map[y][x]===1)return true;if(game.enemies.some(e=>e.x===x&&e.y===y||(e.isBoss&&Math.abs(e.x-x)<=1&&Math.abs(e.y-y)<=1)))return true;return false;}
+function isBlocked(x,y,self){if(game.map[y][x]===1)return true;return game.enemies.some(e=>e!==self&&(e.x===x&&e.y===y||(e.isBoss&&Math.abs(e.x-x)<=1&&Math.abs(e.y-y)<=1)));}
 function checkPickups(){let idx=game.items.findIndex(i=>i.x===game.p.x&&i.y===game.p.y);if(idx>=0){let item=game.items[idx];if(item.mimic){game.items.splice(idx,1);let t=BESTIARY.MIMIC,hp=((t.st[0]*10)+game.level*1.5)|0,dmg=((t.st[1]*3)+game.level*0.5)|0;let e={x:item.x,y:item.y,hp,max:hp,dmg,bits:15+game.level*3,name:"Hungriger Mimic",col:'#853',hue:30,state:'HUNT',type:'MIMIC',speed:8+Math.min(game.level,10),energy:50,sight:6,stun:0,fx:'NONE'};game.enemies.push(e);discoverMon('MIMIC','Hungrig');sfx('glitch');addParticle(item.x,item.y,"MIMIC!",'#f00');addHitFX(item.x,item.y,'slash','#f00');game.timers.shake=5;return;}sfx('shop');game.items.splice(idx,1);if(item.type==='EQUIP'){if(game.inventory.length<(meta.invSlots||10)){game.inventory.push(item.val);addParticle(game.p.x,game.p.y,item.val.name,item.val.rarityCol||item.val.col);}else{addParticle(game.p.x,game.p.y,"VOLL!",'#f00');game.items.push(item);return;}}else{if(item.type===0){if(game.timers.poison>0)addParticle(game.p.x,game.p.y,"GIFT BLOCKT!",'#0f0');else{meta.hp=Math.min(meta.hp+5,game.stats.maxHp);addParticle(game.p.x,game.p.y,"HEILUNG",'#0f0');}}if(item.type===1){meta.mana=Math.min(meta.mana+10,game.stats.maxMana);addParticle(game.p.x,game.p.y,"MANA",'#0af');}if(item.type===2){let b=Math.floor((10+game.level*8+Math.pow(game.level,2)*0.5)*game.stats.lootMul);meta.bits+=b;addParticle(game.p.x,game.p.y,`+${b}`,C.BITS);}if(item.type===3&&meta.scrolls<5){meta.scrolls++;addParticle(game.p.x,game.p.y,"RITUAL",'#f60');}}}}
 // Chaos-Biom: UI-Elemente durcheinander würfeln
 function shuffleUI(){
@@ -1441,7 +1474,7 @@ function useSkill(){
  let acted=false;
  if(c==='WARRIOR'){
   meta[res]-=cost;if(res==='stam')game.exert=1;sfx('attack');addParticle(game.p.x,game.p.y,"WIRBELWIND!",'#fff');
-  for(let iy=-1;iy<=1;iy++)for(let ix=-1;ix<=1;ix++){if(ix===0&&iy===0)continue;let tx=game.p.x+ix,ty=game.p.y+iy,t=game.enemies.find(e=>e.x===tx&&e.y===ty);if(t){hurt(t,game.stats.dmg,false);let kx=t.x+ix,ky=t.y+iy;if(!isBlocked(kx,ky)&&!game.walls[ky*GRID+kx]){t.x=kx;t.y=ky;}}}acted=true;
+  for(let iy=-1;iy<=1;iy++)for(let ix=-1;ix<=1;ix++){if(ix===0&&iy===0)continue;let tx=game.p.x+ix,ty=game.p.y+iy,t=game.enemies.find(e=>e.x===tx&&e.y===ty||(e.isBoss&&Math.abs(e.x-tx)<=1&&Math.abs(e.y-ty)<=1));if(t){hurt(t,game.stats.dmg,false);let kx=t.x+ix,ky=t.y+iy;if(!isBlocked(kx,ky,t)&&!game.walls[ky*GRID+kx]){t.x=kx;t.y=ky;}}}acted=true;
  }else if(c==='MAGE'){game.aiming=!game.aiming;addParticle(game.p.x,game.p.y,game.aiming?"ZIELEN...":"ABBRUCH",'#f0f');updateUI();return;}
  if(acted){game.p.energy-=100;updateUI();processTurns();}
 }
