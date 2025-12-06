@@ -18,6 +18,9 @@ exports.handler = async (event, context) => {
   }
 
   try {
+    if (!process.env.REDIS_URL) {
+      throw new Error("REDIS_URL environment variable is missing");
+    }
     const client = new Redis(process.env.REDIS_URL);
 
     if (event.httpMethod === 'POST') {
