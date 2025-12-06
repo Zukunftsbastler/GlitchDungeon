@@ -121,6 +121,7 @@
         <div class="inv-tab active" onclick="invTab(0)">AUSRÜSTUNG</div>
         <div class="inv-tab" onclick="invTab(1)">GRIMOIRE</div>
         <div class="inv-tab" onclick="invTab(2)">ERFOLGE</div>
+        <div class="inv-tab" onclick="invTab(3)">BESTENLISTE</div>
     </div>
     <div id="inv-content-0">
         <div class="equip-slots" id="equip-display"></div>
@@ -255,9 +256,9 @@ const ACHIEVEMENTS=[
  {id:14,n:"Überlebenskünstler",d:"Überlebe 100 Züge in einem Run",i:"⏳",k:"maxTurns",t:100},
  {id:15,n:"Zeitmeister",d:"Überlebe 500 Züge in einem Run",i:"⌛",k:"maxTurns",t:500}
 ];
-let stats={kills:0,totalGold:0,bossKills:0,maxTurns:0,biomesVisited:0,grimoire:[],ach:0};
-function loadStats(){try{let s=JSON.parse(localStorage.getItem('GD4_Stats')||'{}');stats.kills=s.k||0;stats.totalGold=s.g||0;stats.bossKills=s.b||0;stats.maxTurns=s.t||0;stats.biomesVisited=s.v||0;stats.grimoire=s.m||[];stats.ach=s.a||0;}catch(e){}}
-function saveStats(){localStorage.setItem('GD4_Stats',JSON.stringify({k:stats.kills,g:stats.totalGold,b:stats.bossKills,t:stats.maxTurns,v:stats.biomesVisited,m:stats.grimoire,a:stats.ach}));}
+let stats={kills:0,totalGold:0,bossKills:0,maxTurns:0,biomesVisited:0,grimoire:[],ach:0,deaths:0};
+function loadStats(){try{let s=JSON.parse(localStorage.getItem('GD4_Stats')||'{}');stats.kills=s.k||0;stats.totalGold=s.g||0;stats.bossKills=s.b||0;stats.maxTurns=s.t||0;stats.biomesVisited=s.v||0;stats.grimoire=s.m||[];stats.ach=s.a||0;stats.deaths=s.d||0;}catch(e){}}
+function saveStats(){localStorage.setItem('GD4_Stats',JSON.stringify({k:stats.kills,g:stats.totalGold,b:stats.bossKills,t:stats.maxTurns,v:stats.biomesVisited,m:stats.grimoire,a:stats.ach,d:stats.deaths}));}
 function grimId(mon,adj){return MONS.indexOf(mon)*ADJ.length+ADJ.indexOf(adj);}
 function discoverMon(mon,adj){let id=grimId(mon,adj);if(id>=0&&!stats.grimoire.includes(id)){stats.grimoire.push(id);checkAch();saveStats();}}
 function checkAch(){let changed=false;ACHIEVEMENTS.forEach(a=>{if(stats.ach&(1<<a.id))return;let v;if(a.k==='grimCount')v=stats.grimoire.length;else if(a.k==='biomesVisited'){let c=0;for(let i=0;i<10;i++)if(stats.biomesVisited&(1<<i))c++;v=c;}else if(a.k==='maxLvl')v=meta.maxLvl;else v=stats[a.k];if(v>=a.t){stats.ach|=(1<<a.id);changed=true;showAchPopup(a);}});if(changed)saveStats();}
@@ -457,6 +458,8 @@ Object.keys(CLASSES).forEach(k=>{
 });
 
 function enterDungeon(k){
+ meta.name=prompt("Name des Helden:")||"Anonym";
+ if(!meta.name||meta.name==="")return;
  let c=CLASSES[k];Object.assign(meta,{class:k,hp:c.hp,maxHp:c.hp,mana:c.mana,maxMana:c.mana,stam:c.stam,maxStam:c.stam,mine:c.mine,noise:c.noise,speed:c.spd,dmg:1});
  // Echte Startwaffe (wird im Tutorial als Item gefunden)
  let startItem={id:Math.random(),name:'Start '+c.item,target:k,slot:'WEAPON',col:'#aaa',mods:{dmg:2}};
@@ -1304,7 +1307,22 @@ function calcStats(){
 function save(){localStorage.setItem('GD4_Dark_Save',JSON.stringify({bits:meta.bits,maxLvl:meta.maxLvl,shopSlots:meta.shopSlots,shopLuck:meta.shopLuck,invSlots:meta.invSlots,torchCount:meta.torchCount,lockedItems:meta.lockedItems||[],passiveSlots:meta.passiveSlots||3,upgradePool:meta.upgradePool||[],equippedPassives:meta.equippedPassives||[]}));}
 function showHelp(){let c=meta.class,skill=c==='WARRIOR'?'Wirbelwind (Rundumschaden)':c==='ROGUE'?'Unsichtbarkeit (Tarnung)':'Feuerball (Fernkampf)';alert(`STEUERUNG:\nWASD/Pfeile: Bewegen\nLeertaste: Warten\nB: ${skill}\nF: Bannkreis benutzen\nI: Inventar\n\nKLASSE: ${CLASSES[c].n}\n${c==='WARRIOR'?'Stark im Nahkampf, kann Wände schnell zerstören.':c==='ROGUE'?'Schnell und leise, kann sich verstecken.':'Mächtige Zauber, aber wenig Lebensenergie.'}\n\nTIPPS:\n- Sammle den Schlüssel, dann zum Ausgang\n- Vermeide den Realitätsbruch (Glitch)\n- Im Shop: L = Sperren, Leertaste = Neues Angebot`);}
 function delSave(){if(confirm('Alles löschen (inkl. Grimoire, Erfolge & Tutorial)?')){localStorage.removeItem('GD4_Dark_Save');localStorage.removeItem('GD4_Stats');localStorage.removeItem('GD4_Tut');location.reload();}}
-function triggerGameOver(){game.mode='SHOP';game.rerollCost=10;generateShop();$('shop-ui').style.display='flex';
+// Leaderboard-Funktionen
+function packGear(){return Object.values(game.equipment).map(e=>e?RARITIES.findIndex(r=>r.col===e.col):0);}
+async function submitScore(){
+ if(!meta.name)return;
+ let payload=[meta.name,['WARRIOR','ROGUE','MAGE'].indexOf(meta.class),meta.maxLvl,Math.round((game.turnCount/game.level)*10)/10||0,stats.kills,stats.deaths,packGear(),Date.now()];
+ try{await fetch('/.netlify/functions/leaderboard',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'submit',data:payload})});}catch(e){console.log('Leaderboard offline');}
+}
+async function fetchLeaderboard(){
+ try{let r=await fetch('/.netlify/functions/leaderboard?class='+['WARRIOR','ROGUE','MAGE'].indexOf(meta.class));let d=await r.json();renderLeaderboard(d.top||[]);}catch(e){let c3=$('inv-content-3');if(c3)c3.innerHTML='<div style="padding:20px;text-align:center">Offline</div>';}
+}
+function renderLeaderboard(data){
+ let h='<table style="width:100%;border-collapse:collapse;margin-top:10px"><tr style="border-bottom:1px solid #333"><th>#<th>Name<th>Lvl<th>Ø<th>K/D<th>Eq</tr>';
+ data.forEach((e,i)=>{let gear=e[6].map(g=>`<span style="display:inline-block;width:8px;height:8px;background:${RARITIES[g]?.col||'#333'};margin:0 1px"></span>`).join('');h+=`<tr style="border-bottom:1px solid #222"><td>${i+1}<td>${esc(e[0])}<td>${e[2]}<td>${e[3]}<td>${e[4]}/${e[5]}<td>${gear}</tr>`;});
+ $('inv-content-3').innerHTML=h+'</table>';
+}
+function triggerGameOver(){stats.deaths++;saveStats();submitScore();game.mode='SHOP';game.rerollCost=10;generateShop();$('shop-ui').style.display='flex';
  // Tutorial abgeschlossen? Dann Level 0 verfügbar aber Level 1 vorausgewählt
  let tutDone=localStorage.getItem('GD4_Tut')==='1';
  if(meta.maxLvl>1||tutDone){
@@ -1482,7 +1500,7 @@ function inv_toggle(){let el=$('inv-screen');if(el.style.display==='block'){el.s
 function cycleInvMode(){game.invMode=(game.mode==='SHOP')?((game.invMode===0)?2:0):((game.invMode===0)?1:0);updateInvModeUI();}
 function updateInvModeUI(){let btn=$('inv-mode-btn'),grid=$('inv-display');grid.className='inv-grid';if(game.invMode===0){btn.innerHTML="⚔️ AUSRÜSTEN <span style='font-size:0.7em;opacity:0.6'>(Klick zum Wechseln)</span>";btn.style.color="#0f0";btn.style.borderColor="#0f0";btn.style.background="#0a1a0a";}else if(game.invMode===1){btn.innerHTML="🗑️ WEGWERFEN <span style='font-size:0.7em;opacity:0.6'>(Klick zum Wechseln)</span>";btn.style.color="#f00";btn.style.borderColor="#f00";btn.style.background="#1a0a0a";grid.classList.add('mode-trash');}else if(game.invMode===2){btn.innerHTML="💰 VERKAUFEN <span style='font-size:0.7em;opacity:0.6'>(Klick zum Wechseln)</span>";btn.style.color="#ffd700";btn.style.borderColor="#ffd700";btn.style.background="#1a1a0a";grid.classList.add('mode-sell');}}
 let invTabIdx=0;
-function invTab(i){invTabIdx=i;document.querySelectorAll('.inv-tab').forEach((t,j)=>t.classList.toggle('active',i===j));for(let j=0;j<3;j++)$('inv-content-'+j).style.display=i===j?'block':'none';if(i===1)renderGrim();if(i===2)renderAch();}
+function invTab(i){invTabIdx=i;document.querySelectorAll('.inv-tab').forEach((t,j)=>t.classList.toggle('active',i===j));for(let j=0;j<4;j++){let el=$('inv-content-'+j);if(el)el.style.display=i===j?'block':'none';}if(i===1)renderGrim();if(i===2)renderAch();if(i===3){let d=$('inv-content-3');if(!d){d=document.createElement('div');d.id='inv-content-3';d.style.display='block';$('inv-screen').appendChild(d);}fetchLeaderboard();}}
 function renderGrim(){let cnt=stats.grimoire.length,bk=stats.bossKills||0,h=`<div class="grim-count">MONSTER: ${cnt}/${GRIM_TOTAL} | BOSSE: ${bk}/${BOSSES.length}</div><div class="grim-grid">`;MONS.forEach(m=>{ADJ.forEach(a=>{let id=grimId(m,a),f=stats.grimoire.includes(id),ad=ADJ_DATA[a],bd=BESTIARY[m],st=bd.st,hp=((st[0]*10)|0),dmg=((st[1]*3)|0);h+=`<div class="grim-entry ${f?'found':'unseen'}" title="${f?`${a} ${bd.n}\nHP:~${hp} DMG:~${dmg}\nAI:${bd.ai}`:'???'}"><canvas width="32" height="32" class="grim-spr" style="width:16px;height:16px" data-m="${f?m:''}" data-c="${f?ad.col:'#222'}"></canvas><div style="color:${f?ad.col:'#333'};font-size:9px">${f?a:'?'}</div><div style="font-size:10px">${f?bd.n:'?'}</div></div>`;});});BOSSES.forEach((b,i)=>{let lvl=(i+1)*5,f=bk>i,c=b.col==='RAINBOW'?'#f0f':b.col;h+=`<div class="grim-entry ${f?'found':'unseen'}" title="${f?`${b.n} (Lvl ${lvl})\nHP:${b.hp} DMG:${b.dmg}\nTyp:${b.type}\n${b.desc}`:'??? (Lvl '+lvl+')'}"><canvas width="32" height="32" class="grim-spr" style="width:16px;height:16px" data-m="${f?'BOSS':''}" data-c="${f?c:'#222'}"></canvas><div style="color:${f?'#ffd700':'#333'};font-size:9px">${f?'BOSS':'?'}</div><div style="color:${f?c:'#333'};font-size:10px">${f?b.n:'???'}</div></div>`;});h+='</div>';$('inv-content-1').innerHTML=h;document.querySelectorAll('.grim-spr').forEach(c=>{let m=c.dataset.m,col=c.dataset.c;if(m)drawSprite(c.getContext('2d'),0,0,Math.random()*999|0,m,col);});}
 function renderAch(){let done=ACHIEVEMENTS.filter(a=>stats.ach&(1<<a.id)).length,h=`<div class="ach-count">ERFOLGE: ${done}/${ACHIEVEMENTS.length}</div><div class="ach-list">`;ACHIEVEMENTS.forEach(a=>{let unlocked=stats.ach&(1<<a.id),v;if(a.k==='grimCount')v=stats.grimoire.length;else if(a.k==='biomesVisited'){let c=0;for(let i=0;i<10;i++)if(stats.biomesVisited&(1<<i))c++;v=c;}else v=stats[a.k];let prog=unlocked?'':`<div class="ach-prog">${Math.min(v,a.t)}/${a.t}</div>`;h+=`<div class="ach-item ${unlocked?'':'locked'}"><div class="ach-icon">${unlocked?a.i:'🔒'}</div><div class="ach-info"><div class="ach-name">${esc(a.n)}</div><div class="ach-desc">${esc(a.d)}</div>${prog}</div></div>`;});$('inv-content-2').innerHTML=h+'</div>';}
 function renderInv(){
