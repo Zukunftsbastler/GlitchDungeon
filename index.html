@@ -1318,8 +1318,8 @@ async function fetchLeaderboard(){
  try{let r=await fetch('/.netlify/functions/leaderboard?class='+['WARRIOR','ROGUE','MAGE'].indexOf(meta.class));let d=await r.json();renderLeaderboard(d.top||[]);}catch(e){let c3=$('inv-content-3');if(c3)c3.innerHTML='<div style="padding:20px;text-align:center">Offline</div>';}
 }
 function renderLeaderboard(data){
- let h='<table style="width:100%;border-collapse:collapse;margin-top:10px"><tr style="border-bottom:1px solid #333"><th>#<th>Name<th>Lvl<th>Ø<th>K/D<th>Eq</tr>';
- data.forEach((e,i)=>{let gear=e[6].map(g=>`<span style="display:inline-block;width:8px;height:8px;background:${RARITIES[g]?.col||'#333'};margin:0 1px"></span>`).join('');h+=`<tr style="border-bottom:1px solid #222"><td>${i+1}<td>${esc(e[0])}<td>${e[2]}<td>${e[3]}<td>${e[4]}/${e[5]}<td>${gear}</tr>`;});
+ let h='<style>.lb-t{width:100%;border-collapse:collapse;font-size:14px}.lb-t th{padding:8px 4px;border-bottom:2px solid #555;text-align:left;font-family:var(--font-display);color:var(--accent-color);white-space:nowrap}.lb-t td{padding:6px 4px;border-bottom:1px solid #222}.lb-g{display:inline-block;width:10px;height:10px;margin:0 2px;border:1px solid #000;box-shadow:0 0 3px rgba(0,0,0,0.5)}@media(max-width:480px){.lb-t{font-size:11px}.lb-t th,.lb-t td{padding:4px 2px}.lb-g{width:8px;height:8px}}</style><table class="lb-t"><tr><th title="Platzierung">Rang<th title="Name des Helden">Name<th title="Erreichte Tiefe">Tiefe<th title="Durchschnittliche Züge pro Ebene">Züge/Lvl<th title="Kills / Tode">K/D<th title="Ausrüstung (Waffe/Rüstung/Relikt)">Gear</tr>';
+ data.forEach((e,i)=>{let g=e[6],gear=['Waffe','Rüstung','Relikt'].map((n,j)=>{let r=RARITIES[g[j]]||{col:'#333',name:'Keine'};return`<span class="lb-g" style="background:${r.col}" title="${r.name} ${n}"></span>`}).join('');h+=`<tr><td>${i+1}<td title="${esc(e[0])}">${esc(e[0].length>12?e[0].slice(0,11)+'…':e[0])}<td>${e[2]}<td>${e[3]}<td>${e[4]}/${e[5]}<td>${gear}</tr>`;});
  $('inv-content-3').innerHTML=h+'</table>';
 }
 function triggerGameOver(){stats.deaths++;saveStats();submitScore();game.mode='SHOP';game.rerollCost=10;generateShop();$('shop-ui').style.display='flex';
