@@ -1,7 +1,10 @@
 {
   "name": "glitch-dungeon",
   "version": "1.0.0",
+  "scripts": {
+    "build": "echo Build complete"
+  },
   "dependencies": {
-    "ioredis": "^5.3.2"
+    "ioredis": "^4.28.2"
   }
 }
