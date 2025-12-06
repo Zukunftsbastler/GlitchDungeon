@@ -1,0 +1,7 @@
+{
+  "name": "glitch-dungeon-functions",
+  "version": "1.0.0",
+  "dependencies": {
+    "ioredis": "^4.28.2"
+  }
+}
