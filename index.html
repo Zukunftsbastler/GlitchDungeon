@@ -202,6 +202,7 @@ const TILE=32,GRID=20,UI={lvl:$('ui-lvl'),hp:$('ui-hp'),key:$('ui-key'),glitch:$
 let actx; function au(){if(!actx){actx=new(window.AudioContext||window.webkitAudioContext)();actx.resume()}}
 const CVS=$('cvs'),CTX=CVS.getContext('2d'),L_CVS=document.createElement('canvas');L_CVS.width=640;L_CVS.height=640;const L_CTX=L_CVS.getContext('2d');
 const C={BG:'#050505',WALL:'#2a2a2a',FLOOR:'#111111',PL:'#e3d5b8',BITS:'#ffd700'};
+const generateUID=()=>'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{let r=Math.random()*16|0,v=c=='x'?r:(r&0x3|0x8);return v.toString(16);});
 
 // --- BIOME CONFIG ---
 // Tile-Typen: 0=Boden, 1=Wand, 2=Eis, 3=Morast(langsam), 4=Lava, 5=Astral, 6=Tümpel(Gift), 7=Kristall, 8=Leere, 9=Labyrinth, 10=Chaos
@@ -446,8 +447,8 @@ const TUT_HINTS={
 let tutRoom=0,tutMsg='',tutMsgTimer=0,tutStartItem=null,tutWaitForKey=false,tutShownShop=false,tutShownExhaust=false;
 
 // --- STATE ---
-let meta={bits:0,hp:10,maxHp:10,mana:10,maxMana:10,stam:10,maxStam:10,dmg:1,mine:1,noise:5,speed:10,def:0,manaRegen:0,stamRegen:1,class:'WARRIOR',critChance:0.05,dodgeChance:0.05,lootMul:1.0,glitchMod:0,scrolls:0,torchCount:0,torchRadius:150,maxLvl:1,shopSlots:2,invSlots:3,shopLuck:0,discount:0,lockedItems:[],spellDmg:0,stealthCost:5,stealthDrain:3,passiveSlots:3,upgradePool:[],equippedPassives:[]};
-if(localStorage.getItem('GD4_Dark_Save')){try{let s=JSON.parse(localStorage.getItem('GD4_Dark_Save'));meta.bits=s.bits;meta.maxLvl=s.maxLvl;meta.shopSlots=s.shopSlots||2;meta.shopLuck=s.shopLuck||0;meta.invSlots=s.invSlots||3;meta.torchCount=s.torchCount||0;meta.lockedItems=s.lockedItems||[];meta.passiveSlots=s.passiveSlots||3;meta.upgradePool=s.upgradePool||[];meta.equippedPassives=s.equippedPassives||[];}catch(e){localStorage.removeItem('GD4_Dark_Save');}}
+let meta={uid:generateUID(),bits:0,hp:10,maxHp:10,mana:10,maxMana:10,stam:10,maxStam:10,dmg:1,mine:1,noise:5,speed:10,def:0,manaRegen:0,stamRegen:1,class:'WARRIOR',critChance:0.05,dodgeChance:0.05,lootMul:1.0,glitchMod:0,scrolls:0,torchCount:0,torchRadius:150,maxLvl:1,shopSlots:2,invSlots:3,shopLuck:0,discount:0,lockedItems:[],spellDmg:0,stealthCost:5,stealthDrain:3,passiveSlots:3,upgradePool:[],equippedPassives:[]};
+if(localStorage.getItem('GD4_Dark_Save')){try{let s=JSON.parse(localStorage.getItem('GD4_Dark_Save'));meta.uid=s.uid||generateUID();meta.bits=s.bits;meta.maxLvl=s.maxLvl;meta.shopSlots=s.shopSlots||2;meta.shopLuck=s.shopLuck||0;meta.invSlots=s.invSlots||3;meta.torchCount=s.torchCount||0;meta.lockedItems=s.lockedItems||[];meta.passiveSlots=s.passiveSlots||3;meta.upgradePool=s.upgradePool||[];meta.equippedPassives=s.equippedPassives||[];}catch(e){localStorage.removeItem('GD4_Dark_Save');}}
 let game={invMode:0,mode:'GAME',map:[],walls:new Uint8Array(GRID*GRID),level:1,biome:0,turnCount:0,p:{x:1,y:1,en:0,dir:{x:0,y:1},hidden:false,lavaCD:0,falling:false,slide:false,slideDir:null},enemies:[],items:[],particles:[],shopItems:[],torches:[],inventory:[],equipment:{WEAPON:null,ARMOR:null,RELIC:null},stats:{},key:{x:0,y:0},exit:{x:0,y:0},timers:{glitch:25,stun:0,shake:0,poison:0,burn:0},lockMode:false,rerollCost:10,lockInput:false,aiming:false,mouse:{x:0,y:0},confused:0,crystalVision:0,boss:null,bossAura:null,chargePreview:null,isBossLevel:false};
 
 // --- LOGIC ---
@@ -459,15 +460,14 @@ Object.keys(CLASSES).forEach(k=>{
 });
 
 function enterDungeon(k){
- meta.name=prompt("Name des Helden:")||"Anonym";
- if(!meta.name||meta.name==="")return;
+ let n=prompt("Name des Helden:")||"Anonym";if(!n)return;
+ localStorage.removeItem('GD4_Dark_Save');
+ meta={uid:generateUID(),name:n,bits:0,hp:10,maxHp:10,mana:10,maxMana:10,stam:10,maxStam:10,dmg:1,mine:1,noise:5,speed:10,def:0,manaRegen:0,stamRegen:1,class:k,critChance:0.05,dodgeChance:0.05,lootMul:1.0,glitchMod:0,scrolls:0,torchCount:0,torchRadius:150,maxLvl:1,shopSlots:2,invSlots:3,shopLuck:0,discount:0,lockedItems:[],spellDmg:0,stealthCost:5,stealthDrain:3,passiveSlots:3,upgradePool:[],equippedPassives:[]};
  let c=CLASSES[k];Object.assign(meta,{class:k,hp:c.hp,maxHp:c.hp,mana:c.mana,maxMana:c.mana,stam:c.stam,maxStam:c.stam,mine:c.mine,noise:c.noise,speed:c.spd,dmg:1});
- // Echte Startwaffe (wird im Tutorial als Item gefunden)
- let startItem={id:Math.random(),name:'Start '+c.item,target:k,slot:'WEAPON',col:'#aaa',mods:{dmg:2}};
- if(k==='MAGE')startItem.mods={dmg:1,maxMana:5};if(k==='ROGUE')startItem.mods={dmg:2,speed:2};
- tutStartItem=startItem;
+ let sItem={id:Math.random(),name:'Start '+c.item,target:k,slot:'WEAPON',col:'#aaa',mods:{dmg:2}};
+ if(k==='MAGE')sItem.mods={dmg:1,maxMana:5};if(k==='ROGUE')sItem.mods={dmg:2,speed:2};tutStartItem=sItem;
  $('start-screen').style.opacity=0;
- setTimeout(()=>{$('start-screen').style.display='none';let gw=$('game-wrapper');gw.style.display='flex';void gw.offsetWidth;gw.style.opacity='1';initGame(TUT_DONE?startItem:null);},800);
+ setTimeout(()=>{$('start-screen').style.display='none';let gw=$('game-wrapper');gw.style.display='flex';void gw.offsetWidth;gw.style.opacity='1';initGame(TUT_DONE?sItem:null);},800);
 }
 function initGame(s){
  game.inventory=[];
@@ -1305,14 +1305,14 @@ function calcStats(){
  game.stats.maxStam=Math.max(1,game.stats.maxStam);
 }
 
-function save(){localStorage.setItem('GD4_Dark_Save',JSON.stringify({bits:meta.bits,maxLvl:meta.maxLvl,shopSlots:meta.shopSlots,shopLuck:meta.shopLuck,invSlots:meta.invSlots,torchCount:meta.torchCount,lockedItems:meta.lockedItems||[],passiveSlots:meta.passiveSlots||3,upgradePool:meta.upgradePool||[],equippedPassives:meta.equippedPassives||[]}));}
+function save(){localStorage.setItem('GD4_Dark_Save',JSON.stringify({uid:meta.uid,bits:meta.bits,maxLvl:meta.maxLvl,shopSlots:meta.shopSlots,shopLuck:meta.shopLuck,invSlots:meta.invSlots,torchCount:meta.torchCount,lockedItems:meta.lockedItems||[],passiveSlots:meta.passiveSlots||3,upgradePool:meta.upgradePool||[],equippedPassives:meta.equippedPassives||[]}));}
 function showHelp(){let c=meta.class,skill=c==='WARRIOR'?'Wirbelwind (Rundumschaden)':c==='ROGUE'?'Unsichtbarkeit (Tarnung)':'Feuerball (Fernkampf)';alert(`STEUERUNG:\nWASD/Pfeile: Bewegen\nLeertaste: Warten\nB: ${skill}\nF: Bannkreis benutzen\nI: Inventar\n\nKLASSE: ${CLASSES[c].n}\n${c==='WARRIOR'?'Stark im Nahkampf, kann Wände schnell zerstören.':c==='ROGUE'?'Schnell und leise, kann sich verstecken.':'Mächtige Zauber, aber wenig Lebensenergie.'}\n\nTIPPS:\n- Sammle den Schlüssel, dann zum Ausgang\n- Vermeide den Realitätsbruch (Glitch)\n- Im Shop: L = Sperren, Leertaste = Neues Angebot`);}
 function delSave(){if(confirm('Alles löschen (inkl. Grimoire, Erfolge & Tutorial)?')){localStorage.removeItem('GD4_Dark_Save');localStorage.removeItem('GD4_Stats');localStorage.removeItem('GD4_Tut');location.reload();}}
 // Leaderboard-Funktionen
 function packGear(){return Object.values(game.equipment).map(e=>e?RARITIES.findIndex(r=>r.col===e.col):0);}
 async function submitScore(){
  if(!meta.name)return;
- let payload=[meta.name,['WARRIOR','ROGUE','MAGE'].indexOf(meta.class),meta.maxLvl,Math.round((game.turnCount/game.level)*10)/10||0,stats.kills,stats.deaths,packGear(),Date.now()];
+ let payload=[meta.name,['WARRIOR','ROGUE','MAGE'].indexOf(meta.class),meta.maxLvl,Math.round((game.turnCount/game.level)*10)/10||0,stats.kills,stats.deaths,packGear(),Date.now(),meta.uid];
  try{await fetch('/.netlify/functions/leaderboard',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'submit',data:payload})});}catch(e){console.log('Leaderboard offline');}
 }
 async function fetchLeaderboard(){

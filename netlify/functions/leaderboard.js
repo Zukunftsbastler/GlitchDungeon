@@ -33,6 +33,9 @@ exports.handler = async (event, context) => {
       const raw = await client.get(key);
       let arr = raw ? JSON.parse(raw) : [];
 
+      // Update: Vorherigen Eintrag dieser UID entfernen
+      if(data[8]) arr = arr.filter(e => e[8] !== data[8]);
+
       // Füge neuen Score hinzu
       arr.push(data);
 
