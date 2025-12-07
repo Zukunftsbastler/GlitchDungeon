@@ -4,7 +4,8 @@ const KEYS = ['GD_TOP_WAR', 'GD_TOP_ROG', 'GD_TOP_MAG'];
 
 // WICHTIG: Ersetze mit deiner echten Netlify-Domain!
 const ALLOWED_ORIGINS = [
-  'https://glitch-dungeon.netlify.app', // Deine Production-Domain
+  'https://glitchdungeon.netlify.app',   // Deine Production-Domain (ohne Bindestrich!)
+  'https://glitch-dungeon.netlify.app',  // Fallback
   'http://localhost:8888',               // Netlify Dev
   'http://localhost:3000'                // Falls du anders testest
 ];

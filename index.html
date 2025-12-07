@@ -202,7 +202,7 @@ const TILE=32,GRID=20,UI={lvl:$('ui-lvl'),hp:$('ui-hp'),key:$('ui-key'),glitch:$
 let actx; function au(){if(!actx){actx=new(window.AudioContext||window.webkitAudioContext)();actx.resume()}}
 const CVS=$('cvs'),CTX=CVS.getContext('2d'),L_CVS=document.createElement('canvas');L_CVS.width=640;L_CVS.height=640;const L_CTX=L_CVS.getContext('2d');
 const C={BG:'#050505',WALL:'#2a2a2a',FLOOR:'#111111',PL:'#e3d5b8',BITS:'#ffd700'};
-const API_URL = 'https://glitch-dungeon.netlify.app/.netlify/functions/leaderboard';
+const API_URL = 'https://glitchdungeon.netlify.app/.netlify/functions/leaderboard';
 function sanitizeName(name) {
   if (!name || typeof name !== 'string') return 'Held';
   const div = document.createElement('div');
