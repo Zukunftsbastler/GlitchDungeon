@@ -202,7 +202,32 @@ const TILE=32,GRID=20,UI={lvl:$('ui-lvl'),hp:$('ui-hp'),key:$('ui-key'),glitch:$
 let actx; function au(){if(!actx){actx=new(window.AudioContext||window.webkitAudioContext)();actx.resume()}}
 const CVS=$('cvs'),CTX=CVS.getContext('2d'),L_CVS=document.createElement('canvas');L_CVS.width=640;L_CVS.height=640;const L_CTX=L_CVS.getContext('2d');
 const C={BG:'#050505',WALL:'#2a2a2a',FLOOR:'#111111',PL:'#e3d5b8',BITS:'#ffd700'};
-const generateUID=()=>'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{let r=Math.random()*16|0,v=c=='x'?r:(r&0x3|0x8);return v.toString(16);});
+const API_URL = 'https://glitch-dungeon.netlify.app/.netlify/functions/leaderboard';
+function sanitizeName(name) {
+  if (!name || typeof name !== 'string') return 'Held';
+  const div = document.createElement('div');
+  div.textContent = name;
+  let safe = div.innerHTML;
+  safe = safe.replace(/[<>'"&\/\\]/g, '').replace(/\s+/g, ' ').trim().substring(0, 30);
+  return safe || 'Held';
+}
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+function generateUID() {
+  let uid = localStorage.getItem('GD_UID');
+  if (!uid) {
+    if (window.crypto && window.crypto.randomUUID) {
+      uid = window.crypto.randomUUID();
+    } else {
+      uid = 'uid_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    }
+    localStorage.setItem('GD_UID', uid);
+  }
+  return uid;
+}
 
 // --- BIOME CONFIG ---
 // Tile-Typen: 0=Boden, 1=Wand, 2=Eis, 3=Morast(langsam), 4=Lava, 5=Astral, 6=Tümpel(Gift), 7=Kristall, 8=Leere, 9=Labyrinth, 10=Chaos
@@ -460,7 +485,7 @@ Object.keys(CLASSES).forEach(k=>{
 });
 
 function enterDungeon(k){
- let n=prompt("Name des Helden:")||"Anonym";if(!n)return;
+ let n=sanitizeName(prompt("Name des Helden:")||"Anonym");if(!n)return;
  localStorage.removeItem('GD4_Dark_Save');
  meta={uid:generateUID(),name:n,bits:0,hp:10,maxHp:10,mana:10,maxMana:10,stam:10,maxStam:10,dmg:1,mine:1,noise:5,speed:10,def:0,manaRegen:0,stamRegen:1,class:k,critChance:0.05,dodgeChance:0.05,lootMul:1.0,glitchMod:0,scrolls:0,torchCount:0,torchRadius:150,maxLvl:1,shopSlots:2,invSlots:3,shopLuck:0,discount:0,lockedItems:[],spellDmg:0,stealthCost:5,stealthDrain:3,passiveSlots:3,upgradePool:[],equippedPassives:[]};
  let c=CLASSES[k];Object.assign(meta,{class:k,hp:c.hp,maxHp:c.hp,mana:c.mana,maxMana:c.mana,stam:c.stam,maxStam:c.stam,mine:c.mine,noise:c.noise,speed:c.spd,dmg:1});
@@ -1313,14 +1338,32 @@ function packGear(){return Object.values(game.equipment).map(e=>e?RARITIES.findI
 async function submitScore(){
  if(!meta.name)return;
  let payload=[meta.name,['WARRIOR','ROGUE','MAGE'].indexOf(meta.class),meta.maxLvl,Math.round((game.turnCount/game.level)*10)/10||0,stats.kills,stats.deaths,packGear(),Date.now(),meta.uid];
- try{await fetch('/.netlify/functions/leaderboard',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'submit',data:payload})});}catch(e){console.log('Leaderboard offline');}
+ try{
+   const response = await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({data:payload}),signal:AbortSignal.timeout(10000)});
+   if (!response.ok) {
+      if (response.status === 429) { console.warn('Rate limit reached.'); return; }
+      throw new Error(`HTTP ${response.status}`);
+   }
+   const result = await response.json();
+   if (result.rank) console.log(`Score submitted! Rank: ${result.rank}`);
+ }catch(e){console.warn('Could not submit score:', e.message);}
 }
 async function fetchLeaderboard(){
- try{let r=await fetch('/.netlify/functions/leaderboard?class='+['WARRIOR','ROGUE','MAGE'].indexOf(meta.class));let d=await r.json();renderLeaderboard(d.top||[]);}catch(e){let c3=$('inv-content-3');if(c3)c3.innerHTML='<div style="padding:20px;text-align:center">Offline</div>';}
+ try{
+   let classIdx = ['WARRIOR','ROGUE','MAGE'].indexOf(meta.class);
+   if (classIdx < 0) classIdx = 0;
+   const response = await fetch(`${API_URL}?class=${classIdx}`,{method:'GET',headers:{'Accept':'application/json'},signal:AbortSignal.timeout(5000)});
+   if (!response.ok) throw new Error(`HTTP ${response.status}`);
+   const data = await response.json();
+   if (!data.top || !Array.isArray(data.top)) { console.error('Invalid leaderboard'); return; }
+   renderLeaderboard(data.top);
+ }catch(e){let c3=$('inv-content-3');if(c3)c3.innerHTML='<div style="padding:20px;text-align:center">Offline</div>';}
 }
 function renderLeaderboard(data){
  let h='<style>.lb-t{width:100%;border-collapse:collapse;font-size:14px}.lb-t th{padding:8px 4px;border-bottom:2px solid #555;text-align:left;font-family:var(--font-display);color:var(--accent-color);white-space:nowrap}.lb-t td{padding:6px 4px;border-bottom:1px solid #222}.lb-g{display:inline-block;width:10px;height:10px;margin:0 2px;border:1px solid #000;box-shadow:0 0 3px rgba(0,0,0,0.5)}@media(max-width:480px){.lb-t{font-size:11px}.lb-t th,.lb-t td{padding:4px 2px}.lb-g{width:8px;height:8px}}</style><table class="lb-t"><tr><th title="Platzierung">Rang<th title="Name des Helden">Name<th title="Maximal erreichte Tiefe">Tiefe<th title="Durchschnittliche Züge pro Ebene">Züge/Lvl<th title="Durchschnittlich getötete Gegner bis zum Tod">K/D<th title="Ausrüstung (Waffe/Rüstung/Relikt)">Gear</tr>';
- data.forEach((e,i)=>{let g=e[6],gear=['Waffe','Rüstung','Relikt'].map((n,j)=>{let r=RARITIES[g[j]]||{col:'#333',name:'Keine'};return`<span class="lb-g" style="background:${r.col}" title="${r.name} ${n}"></span>`}).join('');h+=`<tr><td>${i+1}<td title="${esc(e[0])}">${esc(e[0].length>12?e[0].slice(0,11)+'…':e[0])}<td>${e[2]}<td>${e[3]}<td>${e[4]}/${e[5]}<td>${gear}</tr>`;});
+ data.forEach((e,i)=>{let g=e[6],gear=['Waffe','Rüstung','Relikt'].map((n,j)=>{let r=RARITIES[g[j]]||{col:'#333',name:'Keine'};return`<span class="lb-g" style="background:${r.col}" title="${r.name} ${n}"></span>`}).join('');
+ const name = escapeHtml(e[0]);
+ h+=`<tr><td>${i+1}<td title="${name}">${name.length>12?name.slice(0,11)+'…':name}<td>${e[2]}<td>${e[3]}<td>${e[4]}/${e[5]}<td>${gear}</tr>`;});
  $('inv-content-3').innerHTML=h+'</table>';
 }
 function triggerBossVictory(){game.mode='SHOP';game.rerollCost=10;generateShop();$('shop-ui').style.display='flex';$('lvl-select').style.display='block';if(game.level+1>meta.maxLvl){meta.maxLvl=game.level+1;checkAch();} $('lvl-slider').max=meta.maxLvl;$('lvl-slider').value=game.level+1;$('lvl-val').innerText=game.level+1;$('btn-reincarnate').innerText="Weiterreise";save();}
