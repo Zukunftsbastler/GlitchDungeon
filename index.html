@@ -1001,7 +1001,7 @@ function turnLogic(){
   if(game.level===0){endTutorial();return;}
   // Boss-Level: Exit nur wenn Boss tot
   if(game.isBossLevel&&game.boss){addParticle(game.p.x,game.p.y,"BOSS LEBT NOCH!",'#f00');updateUI();return;}
-  if(game.isBossLevel&&!game.boss){addParticle(game.p.x,game.p.y,"WEITER!",'#ffd700');}
+  if(game.isBossLevel&&!game.boss){addParticle(game.p.x,game.p.y,"WEITER!",'#ffd700');triggerBossVictory();return;}
   startLevel(game.level+1);return;
  }
  // Im Tutorial: Kein Glitch, keine Timer
@@ -1323,7 +1323,8 @@ function renderLeaderboard(data){
  data.forEach((e,i)=>{let g=e[6],gear=['Waffe','Rüstung','Relikt'].map((n,j)=>{let r=RARITIES[g[j]]||{col:'#333',name:'Keine'};return`<span class="lb-g" style="background:${r.col}" title="${r.name} ${n}"></span>`}).join('');h+=`<tr><td>${i+1}<td title="${esc(e[0])}">${esc(e[0].length>12?e[0].slice(0,11)+'…':e[0])}<td>${e[2]}<td>${e[3]}<td>${e[4]}/${e[5]}<td>${gear}</tr>`;});
  $('inv-content-3').innerHTML=h+'</table>';
 }
-function triggerGameOver(){stats.deaths++;saveStats();submitScore();game.mode='SHOP';game.rerollCost=10;generateShop();$('shop-ui').style.display='flex';
+function triggerBossVictory(){game.mode='SHOP';game.rerollCost=10;generateShop();$('shop-ui').style.display='flex';$('lvl-select').style.display='block';if(game.level+1>meta.maxLvl){meta.maxLvl=game.level+1;checkAch();} $('lvl-slider').max=meta.maxLvl;$('lvl-slider').value=game.level+1;$('lvl-val').innerText=game.level+1;$('btn-reincarnate').innerText="Weiterreise";save();}
+function triggerGameOver(){$('btn-reincarnate').innerText="Reinkarnation";stats.deaths++;saveStats();submitScore();game.mode='SHOP';game.rerollCost=10;generateShop();$('shop-ui').style.display='flex';
  // Tutorial abgeschlossen? Dann Level 0 verfügbar aber Level 1 vorausgewählt
  let tutDone=localStorage.getItem('GD4_Tut')==='1';
  if(meta.maxLvl>1||tutDone){

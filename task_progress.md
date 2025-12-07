@@ -1,0 +1,4 @@
+- [x] Read index.html to understand existing game logic
+- [x] Implement triggerBossVictory()
+- [x] Update turnLogic() to handle boss victory
+- [x] Update triggerGameOver() to reset UI state
