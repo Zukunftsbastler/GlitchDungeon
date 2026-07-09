@@ -12,24 +12,31 @@
 
 ## TL;DR – Priorisierte Rangfolge
 
-| Rang | Maßnahme | Kategorie | Aufwand | Wirkung |
-|------|----------|-----------|---------|---------|
-| 1 | **Kritische Bugfixes** (Chaos-Crash, Boss-Scaling-Stopp, Leaderboard-Gear, Rarity-Inflation) | Stabilität/Balance | Klein | Sehr hoch |
-| 2 | **Late-Game-Variation: Level-Mutatoren + Biom-Zyklus 2** | Content-Vielfalt | Mittel | Sehr hoch |
-| 3 | **Generative Musik** (WebAudio, pro Biom) | Audio | Mittel | Sehr hoch |
-| 4 | **Dungeon-Struktur-Generator** (Räume, Special Rooms, Fallen, Events) | Content-Vielfalt | Mittel–Groß | Sehr hoch |
-| 5 | **Elite-Monster & Doppel-Adjektive** | Content-Vielfalt | Klein | Hoch |
-| 6 | **Unique-Items & aktive Gegenstände** | Loot-Vielfalt | Mittel | Hoch |
-| 7 | **Skill-Wahl / Klassen-Ausbau** (2.–3. Fähigkeit pro Klasse) | Gameplay-Tiefe | Mittel | Hoch |
-| 8 | **Sound-Toggle + Lautstärkeregler** (Roadmap-Punkt) | UX/Audio | Klein | Mittel |
-| 9 | **Google Fonts lokal einbetten** (DSGVO + Offline) | Recht/Technik | Klein | Mittel |
-| 10 | **Seeded Runs / Daily Challenge** | Meta/Retention | Mittel | Hoch |
-| 11 | **Barrierefreiheit** (Photosensitivität, Farbenblindheit, Schriftgrößen) | Accessibility | Klein–Mittel | Mittel |
-| 12 | **Save-Versionierung + Export/Import** | Technik/Persistenz | Klein | Mittel |
-| 13 | **Mobile-Feinschliff** (D-Pad, Tooltips, Haptik) | UX Mobile | Mittel | Mittel |
-| 14 | **Server-Aufräumen** (tote Kommentare, Rate-Limit-Realität) | Code-Qualität/Security | Klein | Niedrig–Mittel |
+> **✅ UMSETZUNGSSTAND (09.07.2026): Alle 14 Ränge implementiert.** Details zu jeder Maßnahme
+> in den Abschnitten unten; die README dokumentiert die neuen Features. Verifiziert per
+> Syntax-Check und 27 Smoke-Tests (Levelgenerierung Tiefe 1–101, Boss-Scaling, Eliten,
+> Mutatoren, Loot-Verteilung, POIs/Events, Konsumables, Set-Bonus, Seeded RNG).
+
+| Rang | Maßnahme | Kategorie | Aufwand | Wirkung | Status |
+|------|----------|-----------|---------|---------|--------|
+| 1 | **Kritische Bugfixes** (Chaos-Crash, Boss-Scaling-Stopp, Leaderboard-Gear, Rarity-Inflation) | Stabilität/Balance | Klein | Sehr hoch | ✅ |
+| 2 | **Late-Game-Variation: Level-Mutatoren + Biom-Zyklus 2** | Content-Vielfalt | Mittel | Sehr hoch | ✅ 12 Mutatoren, korrumpierte/zerfallene Biome |
+| 3 | **Generative Musik** (WebAudio, pro Biom) | Audio | Mittel | Sehr hoch | ✅ 10 Biom-Profile, dynamisch (Boss/Stealth/Glitch) |
+| 4 | **Dungeon-Struktur-Generator** (Räume, Special Rooms, Fallen, Events) | Content-Vielfalt | Mittel–Groß | Sehr hoch | ✅ Raum-Generator, Schrein/Riss/Schatzkammer, 3 Fallentypen, 4 Events |
+| 5 | **Elite-Monster & Doppel-Adjektive** | Content-Vielfalt | Klein | Hoch | ✅ |
+| 6 | **Unique-Items & aktive Gegenstände** | Loot-Vielfalt | Mittel | Hoch | ✅ 8 Uniques, 4 Konsumables, Doppel-Suffix, Set-Bonus |
+| 7 | **Skill-Wahl / Klassen-Ausbau** (2.–3. Fähigkeit pro Klasse) | Gameplay-Tiefe | Mittel | Hoch | ✅ 2 Spezialisierungen pro Klasse beim Boss-Sieg |
+| 8 | **Sound-Toggle + Lautstärkeregler** (Roadmap-Punkt) | UX/Audio | Klein | Mittel | ✅ Getrennte Toggles (M/N + HUD-Buttons) |
+| 9 | **Google Fonts lokal einbetten** (DSGVO + Offline) | Recht/Technik | Klein | Mittel | ✅ @import entfernt, System-Serif-Fallbacks |
+| 10 | **Seeded Runs / Daily Challenge** | Meta/Retention | Mittel | Hoch | ✅ Mulberry32, „Tägliche Prüfung"-Modus |
+| 11 | **Barrierefreiheit** (Photosensitivität, Farbenblindheit, Schriftgrößen) | Accessibility | Klein–Mittel | Mittel | ✅ Reduzierte-Effekte-Toggle, Schrift-Bumps |
+| 12 | **Save-Versionierung + Export/Import** | Technik/Persistenz | Klein | Mittel | ✅ v-Feld + Base64-Export/Import |
+| 13 | **Mobile-Feinschliff** (D-Pad, Tooltips, Haptik) | UX Mobile | Mittel | Mittel | ✅ D-Pad auf Touch-Geräten |
+| 14 | **Server-Aufräumen** (tote Kommentare, Rate-Limit-Realität) | Code-Qualität/Security | Klein | Niedrig–Mittel | ✅ Neu geschrieben, Redis-Rate-Limit, Plausibilitäts-Check |
 
 Begründung der Reihenfolge: Rang 1 sind billige Fixes mit direktem Qualitätsgewinn (ein Biom crasht aktuell reproduzierbar). Rang 2–4 adressieren exakt die benannte Schwäche – zu wenig Variation in späten Ebenen – dort steckt der größte Spielspaß-Hebel. Musik (Rang 3) ist das auffälligste fehlende Sinnes-Feature. Alles ab Rang 8 ist Politur.
+
+**Balance-Extras aus Abschnitt 7, ebenfalls umgesetzt:** Reroll-Kosten ×2 mit Cap 500 (statt ×3), Leere-Tile mit einmaliger „Kante erwischt"-Gnade pro Ebene, Glitch-Spawns mit Positionsprüfung und Gold-Belohnung, Gegnerzahl-Cap 14. **Noch offen (bewusst):** Run-Zusammenfassung beim Tod (8.2), eigene DOM-Dialoge statt prompt/alert (8.3), Achievement-Freischaltungen (13.1), Finale auf Tiefe 100 (13.4).
 
 ---
 

@@ -100,6 +100,9 @@
         .ach-desc { font-size:0.75rem; color:#888; }
         .ach-prog { font-size:0.7rem; color:#666; margin-top:2px; }
         .grim-count, .ach-count { text-align:center; font-size:0.85rem; color:#888; margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:8px; }
+        .mus-btn { padding:5px 9px; border:1px solid #444; background:#111; color:#888; font-size:10px; cursor:pointer; font-family:var(--font-display); transition:all 0.15s; }
+        .mus-btn:hover { border-color:#0af; color:#ccc; }
+        .mus-btn.on { border-color:#0af; color:#0af; background:#0a1a1a; box-shadow:0 0 6px rgba(0,170,255,0.3); }
         .inv-main { display:flex; gap:15px; }
         .inv-left { flex:1; }
         .inv-right { width:140px; border-left:1px solid #333; padding-left:15px; }
@@ -156,6 +159,8 @@
     <div style="margin-top:-1rem"><label style="cursor:pointer;color:#888;font-size:1rem"><input type="checkbox" id="daily-mode"> ⚄ Tägliche Prüfung <span style="font-size:0.8rem;opacity:0.7">(fester Dungeon-Seed für alle Spieler)</span></label></div>
     <footer>
         <span onclick="delSave()" style="cursor:pointer;border-bottom:1px dotted #8a0b0b;color:#8a0b0b;margin-right:15px">RESET</span>
+        <span id="ft-mus" onclick="toggleMus()" style="cursor:pointer;border-bottom:1px dotted #888;color:#888;margin-right:15px">MUSIK: AN</span>
+        <span id="ft-snd" onclick="toggleSnd()" style="cursor:pointer;border-bottom:1px dotted #888;color:#888;margin-right:15px">SOUND: AN</span>
         <span id="fx-toggle" onclick="toggleFx()" style="cursor:pointer;border-bottom:1px dotted #888;color:#888;margin-right:15px">EFFEKTE: VOLL</span>
         <span onclick="exportSave()" style="cursor:pointer;border-bottom:1px dotted #888;color:#888;margin-right:15px">EXPORT</span>
         <span onclick="importSave()" style="cursor:pointer;border-bottom:1px dotted #888;color:#888;margin-right:15px">IMPORT</span>
@@ -217,9 +222,28 @@ const $=id=>document.getElementById(id);
 const esc=s=>(s+'').replace(/[<>"'&]/g,c=>({'<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','&':'&amp;'}[c]));
 const TILE=32,GRID=20,UI={lvl:$('ui-lvl'),hp:$('ui-hp'),key:$('ui-key'),glitch:$('ui-glitch'),bits:$('ui-bits'),scrolls:$('ui-scrolls'),mana:$('ui-mana'),stam:$('ui-stam'),cls:$('ui-class'),target:$('ui-target')};
 let actx,SFXG,MUSG,sndOn=localStorage.getItem('GD4_Snd')!=='0',musOn=localStorage.getItem('GD4_Mus')!=='0';
-function au(){if(!actx){actx=new(window.AudioContext||window.webkitAudioContext)();SFXG=actx.createGain();SFXG.gain.value=sndOn?1:0;SFXG.connect(actx.destination);MUSG=actx.createGain();MUSG.gain.value=musOn?0.5:0;MUSG.connect(actx.destination);startMusic();}actx.resume()}
-function toggleSnd(){au();sndOn=!sndOn;localStorage.setItem('GD4_Snd',sndOn?'1':'0');if(SFXG)SFXG.gain.value=sndOn?1:0;let b=$('btn-snd');if(b)b.style.opacity=sndOn?'1':'0.35';}
-function toggleMus(){au();musOn=!musOn;localStorage.setItem('GD4_Mus',musOn?'1':'0');if(MUSG)MUSG.gain.value=musOn?0.5:0;let b=$('btn-mus');if(b)b.style.opacity=musOn?'1':'0.35';}
+let audioErr='';
+// Audio-Init gehärtet: Fehler werden sichtbar getoastet und der nächste Input versucht es erneut
+function au(){
+ if(!actx){
+  try{
+   actx=new(window.AudioContext||window.webkitAudioContext)();
+   SFXG=actx.createGain();SFXG.gain.value=sndOn?1:0;SFXG.connect(actx.destination);
+   MUSG=actx.createGain();MUSG.gain.value=musOn?0.5:0;MUSG.connect(actx.destination);
+   startMusic();
+  }catch(e){audioErr=e.message||String(e);actx=null;toast('⚠️ AUDIO-FEHLER: '+audioErr);return;}
+ }
+ if(actx.state!=='running')actx.resume();
+}
+// Kleiner Toast für Zustandswechsel (Stummschaltung darf nie unbemerkt passieren)
+function toast(txt){let el=document.createElement('div');el.style.cssText='position:fixed;top:12%;left:50%;transform:translateX(-50%);background:#0a0a0a;border:1px solid #c5a059;padding:8px 18px;z-index:300;color:#e8d4a8;font-family:var(--font-display);font-size:0.95rem;box-shadow:0 0 15px #000;';el.innerText=txt;document.body.appendChild(el);setTimeout(()=>el.remove(),1400);}
+function sndUI(){let b=$('btn-snd'),m=$('btn-mus'),fs=$('ft-snd'),fm=$('ft-mus');
+ if(b){b.innerText=sndOn?'🔊':'🔇';b.style.opacity=sndOn?'1':'0.45';}
+ if(m){m.innerText=musOn?'🎵':'🔕';m.style.opacity=musOn?'1':'0.45';}
+ if(fs){fs.innerText='SOUND: '+(sndOn?'AN':'AUS');fs.style.color=sndOn?'#888':'#c44';}
+ if(fm){fm.innerText='MUSIK: '+(musOn?'AN':'AUS');fm.style.color=musOn?'#888':'#c44';}}
+function toggleSnd(){au();sndOn=!sndOn;localStorage.setItem('GD4_Snd',sndOn?'1':'0');if(SFXG)SFXG.gain.value=sndOn?1:0;sndUI();toast(sndOn?'🔊 SOUND AN':'🔇 SOUND AUS (Taste N)');}
+function toggleMus(){au();musOn=!musOn;localStorage.setItem('GD4_Mus',musOn?'1':'0');if(MUSG)MUSG.gain.value=musOn?0.5:0;sndUI();toast(musOn?'🎵 MUSIK AN':'🔕 MUSIK AUS (Taste M)');}
 const CVS=$('cvs'),CTX=CVS.getContext('2d'),L_CVS=document.createElement('canvas');L_CVS.width=640;L_CVS.height=640;const L_CTX=L_CVS.getContext('2d');
 const C={BG:'#050505',WALL:'#2a2a2a',FLOOR:'#111111',PL:'#e3d5b8',BITS:'#ffd700'};
 // Seeded RNG (Mulberry32) für reproduzierbare Level-Generierung (Daily Challenge)
@@ -229,6 +253,8 @@ function mulberry(){seedState|=0;seedState=seedState+0x6D2B79F5|0;let t=Math.imu
 let fxRed=localStorage.getItem('GD4_FX')==='1';
 function toggleFx(){fxRed=!fxRed;localStorage.setItem('GD4_FX',fxRed?'1':'0');let el=$('fx-toggle');if(el)el.innerText='EFFEKTE: '+(fxRed?'REDUZIERT':'VOLL');}
 const API_URL = 'https://glitchdungeon.netlify.app/.netlify/functions/leaderboard';
+// Lokale Datei (file://): Origin ist 'null' - Leaderboard-Requests würden nur CORS-Fehler erzeugen
+const IS_FILE = typeof location!=='undefined' && location.protocol==='file:';
 function sanitizeName(name) {
   if (!name || typeof name !== 'string') return 'Held';
   const div = document.createElement('div');
@@ -271,11 +297,11 @@ const BIOMES=[
 ];
 const BESTIARY={
  SKEL:{n:'Skelett',ai:'SLEEP',st:[1,1,1,1]},SLIME:{n:'Schleim',ai:'PATROL',st:[0.8,0.8,0.8,0.8]},
- BAT:{n:'Fledermaus',ai:'PATROL',st:[0.5,0.5,1.5,0.5]},GOLEM:{n:'Golem',ai:'SLEEP',st:[2.5,1.5,0.5,2]},
+ BAT:{n:'Fledermaus',ai:'PATROL',st:[0.5,0.5,1.5,0.5]},GOLEM:{n:'Golem',ai:'SLEEP',st:[2.0,1.5,0.5,2]},
  GHOST:{n:'Geist',ai:'PATROL',st:[0.8,1.2,0.8,1.2]},SPIDER:{n:'Spinne',ai:'PATROL',st:[0.6,1.2,1.2,0.8]},
  RAT:{n:'Ratte',ai:'PATROL',st:[0.5,0.5,1.5,0.5]},SNAKE:{n:'Schlange',ai:'PATROL',st:[0.8,1.5,1.0,1]},
  EYE:{n:'Auge',ai:'PATROL',st:[1.2,1.5,0.8,1.5]},MIMIC:{n:'Mimic',ai:'SLEEP',st:[1.5,2,0.8,2]},
- WRAITH:{n:'Schatten',ai:'PATROL',st:[1.2,1.5,1.2,1.5]},ELEMENTAL:{n:'Elementar',ai:'PATROL',st:[2,1.5,0.8,1.8]},
+ WRAITH:{n:'Schatten',ai:'PATROL',st:[1.2,1.5,1.2,1.5]},ELEMENTAL:{n:'Elementar',ai:'PATROL',st:[1.7,1.5,0.8,1.8]},
  // Spezial-Monster mit Boss-Mechaniken
  OOZE:{n:'Gallertklumpen',ai:'PATROL',st:[1.4,0.5,0.5,1.2],mech:'SPLIT'},
  BASILISK:{n:'Basilisk',ai:'PATROL',st:[0.8,1.0,0.8,1.3],mech:'TRAIL'},
@@ -450,13 +476,17 @@ function getFreeNear(cx,cy){for(let i=0;i<20;i++){let x=cx+rnd(-2,2),y=cy+rnd(-2
 function getRandomArenaPos(){for(let i=0;i<30;i++){let x=rnd(4,GRID-5),y=rnd(4,GRID-5);if(game.map[y][x]!==1&&!game.enemies.some(e=>e.x===x&&e.y===y)&&!(x===game.p.x&&y===game.p.y))return{x,y};}return null;}
 
 // --- DATA ---
+// Klassen-Identität über Ausdauer-Ökonomie & Schadens-Multiplikator:
+// Krieger  = Dauerkämpfer: großer Pool, billige Schläge (atkCost 1), regeneriert halb WÄHREND des Kampfes, hoher dmgMul
+// Schurke  = Burst aus der Tarnung: Hinterhalt x2.5 ist Basis-Fähigkeit, muss mit Ausdauer haushalten
+// Magier   = Distanz: schwacher Nahkampf (dmgMul 0.7), Feuerball skaliert stark mit spellDmg-Items
 const CLASSES={
- WARRIOR:{n:'Krieger',hp:20,mana:0,stam:10,mine:10,noise:10,spd:8,item:'Schwert',desc:'Robust, Laut'},
- ROGUE:{n:'Schurke',hp:12,mana:0,stam:15,mine:3,noise:2,spd:15,item:'Dolch',desc:'Schnell, Leise'},
- MAGE:{n:'Magier',hp:8,mana:20,stam:8,mine:1,noise:5,spd:10,item:'Stab',desc:'Weise, Fragil'}
+ WARRIOR:{n:'Krieger',hp:26,mana:0,stam:20,mine:10,noise:10,spd:8,atkCost:1,stamRegen:2,dmgMul:1.4,item:'Schwert',desc:'Robust, Laut'},
+ ROGUE:{n:'Schurke',hp:12,mana:0,stam:16,mine:3,noise:2,spd:15,atkCost:2,stamRegen:1.5,dmgMul:1.1,item:'Dolch',desc:'Schnell, Leise'},
+ MAGE:{n:'Magier',hp:9,mana:22,stam:8,mine:1,noise:5,spd:9,atkCost:3,stamRegen:1,dmgMul:0.7,item:'Stab',desc:'Weise, Fragil'}
 };
 const I_MATS=[{n:"Holz",m:0.5,c:'#a65',b:{stamCost:-1}},{n:"Eisen",m:1.0,c:'#ccc'},{n:"Stahl",m:1.5,c:'#fff'},{n:"Obsidian",m:2.0,c:'#404',b:{critChance:0.05}},{n:"Mithril",m:3.0,c:'#0ff',b:{stamCost:-2}},{n:"Adamant",m:5.0,c:'#0f0'},{n:"Licht",m:8.0,c:'#ff0',b:{torchRadius:50}},{n:"Arkan",m:15.0,c:'#f0f',b:{manaRegen:1}},{n:"Gold",m:1.2,c:'#ffd700',b:{lootMul:0.2}},{n:"Vampirisch",m:2.0,c:'#800',b:{lifesteal:0.1}}];
-const I_TYPES=[{n:["Dolch","Kris"],target:'ROGUE',s:"WEAPON",baseCost:20,mods:{dmg:2,speed:2,stealthCost:-1,critChance:0.05}},{n:["Schwert","Langschwert"],target:'WARRIOR',s:"WEAPON",baseCost:40,mods:{dmg:3.5,maxStam:4}},{n:["Axt","Beil"],target:'WARRIOR',s:"WEAPON",baseCost:60,mods:{dmg:4,speed:-1.5,maxStam:1}},{n:["Hammer","Keule"],target:'WARRIOR',s:"WEAPON",baseCost:70,mods:{dmg:4.5,speed:-2,maxStam:1.5}},{n:["Stab","Zepter"],target:'MAGE',s:"WEAPON",baseCost:30,mods:{dmg:1.5,maxMana:10,spellDmg:2}},{n:["Hacke","Pickel"],target:'ALL',s:"WEAPON",baseCost:30,mods:{dmg:1,mine:4,speed:-1}},{n:["Robe"],target:'MAGE',s:"ARMOR",baseCost:40,mods:{def:0,maxMana:10,manaRegen:0.2}},{n:["Leder"],target:'ROGUE',s:"ARMOR",baseCost:60,mods:{def:1,dodgeChance:0.1, speed:2}},{n:["Platte"],target:'WARRIOR',s:"ARMOR",baseCost:100,mods:{def:3,speed:-4,noise:3}},{n:["Ring"],target:'ALL',s:"RELIC",baseCost:50,mods:{shopLuck:5}},{n:["Amulett"],target:'ALL',s:"RELIC",baseCost:80,mods:{critChance:0.02}}];
+const I_TYPES=[{n:["Dolch","Kris"],target:'ROGUE',s:"WEAPON",baseCost:20,mods:{dmg:3,speed:2,stealthCost:-1,critChance:0.05}},{n:["Schwert","Langschwert"],target:'WARRIOR',s:"WEAPON",baseCost:40,mods:{dmg:4.5,maxStam:4}},{n:["Axt","Beil"],target:'WARRIOR',s:"WEAPON",baseCost:60,mods:{dmg:5.5,speed:-1.5,maxStam:1}},{n:["Hammer","Keule"],target:'WARRIOR',s:"WEAPON",baseCost:70,mods:{dmg:6,speed:-2,maxStam:1.5}},{n:["Stab","Zepter"],target:'MAGE',s:"WEAPON",baseCost:30,mods:{dmg:1.5,maxMana:10,spellDmg:3}},{n:["Hacke","Pickel"],target:'ALL',s:"WEAPON",baseCost:30,mods:{dmg:1,mine:4,speed:-1}},{n:["Robe"],target:'MAGE',s:"ARMOR",baseCost:40,mods:{def:0,maxMana:10,manaRegen:0.2}},{n:["Leder"],target:'ROGUE',s:"ARMOR",baseCost:60,mods:{def:1,dodgeChance:0.1, speed:2}},{n:["Platte"],target:'WARRIOR',s:"ARMOR",baseCost:100,mods:{def:3,speed:-4,noise:3}},{n:["Ring"],target:'ALL',s:"RELIC",baseCost:50,mods:{shopLuck:5}},{n:["Amulett"],target:'ALL',s:"RELIC",baseCost:80,mods:{critChance:0.02}}];
 // UNIQUE-ITEMS: handgebaute, regelbrechende Gegenstände (nur bei höchsten Rarities)
 const UNIQUES=[
  {n:'Glitchklinge',slot:'WEAPON',col:'#f0f',mods:{dmg:6,critChance:0.15,blink:1},d:'Crits teleportieren dich hinter das Ziel'},
@@ -563,7 +593,7 @@ function getItemPrice(item,tier){
 // --- SKILL-VARIANTEN: Wahl beim ersten Boss-Sieg eines Runs ---
 const SKILL_VARS={
  WARRIOR:[{n:'ERDBEBEN',t:'Erdbeben: Wirbelwind zerbricht Wände & betäubt'},{n:'BLUTRAUSCH',t:'Blutrausch: Wirbelwind heilt +1 LE pro Treffer'}],
- ROGUE:[{n:'SCHATTENSCHRITT',t:'Schattenschritt: Tarnung teleportiert 2 Felder'},{n:'GIFTKLINGE',t:'Giftklinge: Angriff aus Tarnung, +50% & Gift'}],
+ ROGUE:[{n:'SCHATTENSCHRITT',t:'Schattenschritt: Tarnung teleportiert 2 Felder'},{n:'GIFTKLINGE',t:'Giftklinge: Hinterhalt vergiftet & erstattet Ausdauer'}],
  MAGE:[{n:'KETTENBLITZ',t:'Kettenblitz: Feuerball springt auf 2. Ziel'},{n:'FROSTKERN',t:'Frostkern: Feuerball betäubt Getroffene'}]
 };
 // --- TUTORIAL CONFIG ---
@@ -617,8 +647,8 @@ function enterDungeon(k){
  localStorage.removeItem('GD4_Dark_Save');
  meta={uid:generateUID(),name:n,bits:0,hp:10,maxHp:10,mana:10,maxMana:10,stam:10,maxStam:10,dmg:1,mine:1,noise:5,speed:10,def:0,manaRegen:0,stamRegen:1,class:k,critChance:0.05,dodgeChance:0.05,lootMul:1.0,glitchMod:0,scrolls:0,torchCount:0,torchRadius:150,maxLvl:1,shopSlots:2,invSlots:3,shopLuck:0,discount:0,lockedItems:[],spellDmg:0,stealthCost:5,stealthDrain:3,passiveSlots:3,upgradePool:[],equippedPassives:[],skillVar:null};
  let c=CLASSES[k];Object.assign(meta,{class:k,hp:c.hp,maxHp:c.hp,mana:c.mana,maxMana:c.mana,stam:c.stam,maxStam:c.stam,mine:c.mine,noise:c.noise,speed:c.spd,dmg:1});
- let sItem={id:Math.random(),name:'Start '+c.item,target:k,slot:'WEAPON',col:'#aaa',mods:{dmg:2}};
- if(k==='MAGE')sItem.mods={dmg:1,maxMana:5};if(k==='ROGUE')sItem.mods={dmg:2,speed:2};tutStartItem=sItem;
+ let sItem={id:Math.random(),name:'Start '+c.item,target:k,slot:'WEAPON',col:'#aaa',mods:{dmg:3}};
+ if(k==='MAGE')sItem.mods={dmg:1,maxMana:5,spellDmg:1};if(k==='ROGUE')sItem.mods={dmg:3,speed:2};tutStartItem=sItem;
  $('start-screen').style.opacity=0;
  setTimeout(()=>{$('start-screen').style.display='none';let gw=$('game-wrapper');gw.style.display='flex';void gw.offsetWidth;gw.style.opacity='1';initGame(TUT_DONE?sItem:null);},800);
 }
@@ -651,6 +681,9 @@ function startLevel(lvl){
   B={...B,n:(cycle>1?'ZERFALLENE ':'KORRUMPIERTE ')+B.n,hint:B.hint+' Etwas stimmt hier nicht.',hp:B.hp+cycle*8,mobs:[...new Set([...B.mobs,...B2.mobs])]};
  }
  game.B=B;
+ // Biomwechsel: Musik automatisch auf den Biom-Track zurückstellen (hebt Probehör-Wahl auf)
+ if(game.biome!==musLastBiome){musOverride=null;musLastBiome=game.biome;}
+ musStep=Math.ceil((musStep+2)/128)*128-1; // Levelstart = neuer 8-Takt-Zyklus: das Leitmotiv begrüßt die Ebene
  // Mutatoren würfeln (1 ab Tiefe 8, bis zu 2 ab 25, bis zu 3 ab 50)
  game.mutators=[];
  if(lvl>=8){let mn=1+(lvl>=25?1:0)+(lvl>=50?1:0),mp=[...MUTATORS];
@@ -684,7 +717,11 @@ function startLevel(lvl){
  }
  game.map[game.key.y][game.key.x]=0;game.walls[game.key.y*GRID+game.key.x]=0;
  game.map[game.exit.y][game.exit.x]=0;game.walls[game.exit.y*GRID+game.exit.x]=0;
- carvePath(1,1,game.key.x,game.key.y);carvePath(game.key.x,game.key.y,game.exit.x,game.exit.y);
+ // SPAWN-SICHERHEIT: Spieler startet nie in/hinter Wänden - Freiraum-Tasche um die Startposition
+ game.p.x=Math.max(1,Math.min(GRID-2,game.p.x));game.p.y=Math.max(1,Math.min(GRID-2,game.p.y));
+ [[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(o=>{let px=game.p.x+o[0],py=game.p.y+o[1];if(px>0&&px<GRID-1&&py>0&&py<GRID-1&&game.map[py][px]===1){game.map[py][px]=0;game.walls[py*GRID+px]=0;}});
+ // Verbindungspfad ab der ECHTEN Spielerposition (nicht ab Ecke 1,1)
+ carvePath(game.p.x,game.p.y,game.key.x,game.key.y);carvePath(game.key.x,game.key.y,game.exit.x,game.exit.y);
  spawnActors();placePOIs(lvl);Math.random=MR;updateUI();
 }
 // Raum+Korridor-Generator: strukturierte Alternative zum Biom-Noise
@@ -712,6 +749,8 @@ function startBossLevel(lvl){
  if(lvl>game.level){meta.mana=Math.min(game.stats.maxMana,meta.mana+(game.stats.maxMana/2)|0);}
  game.level=lvl;if(lvl>meta.maxLvl){meta.maxLvl=lvl;save();}
  game.biome=bossIdx;
+ if(game.biome!==musLastBiome){musOverride=null;musLastBiome=game.biome;}
+ musStep=Math.ceil((musStep+2)/128)*128-1; // Boss-Level: Leitmotiv als Auftakt
  
  document.documentElement.style.setProperty('--accent-color',B.c[3]);
  C.WALL=B.c[0];C.FLOOR=B.c[1];C.MUD=B.c[2];C.PL=B.c[3];
@@ -900,13 +939,17 @@ function endTutorial(){
  setTimeout(()=>startLevel(1),500);
 }
 function spawnActors(){
- let getFree=()=>{let x,y,t=0;do{x=rnd(1,GRID-2);y=rnd(1,GRID-2);t++}while(((game.map[y][x]===1&&game.walls[y*GRID+x]>5)||(x==1&&y==1))&&t<200);return {x,y}};
+ // Strikt wandfreie Spawns: nie in Wänden (egal welche Härte), nie auf Spieler/Schlüssel/Ausgang/Gegnern
+ let getFree=()=>{let x,y,t=0;do{x=rnd(1,GRID-2);y=rnd(1,GRID-2);t++}while((game.map[y][x]===1||(x===game.p.x&&y===game.p.y)||(x===game.key.x&&y===game.key.y)||(x===game.exit.x&&y===game.exit.y)||game.enemies.some(e=>e.x===x&&e.y===y))&&t<300);return {x,y}};
  game.p.energy=100;game.p.actNoise=0;meta.mana=game.stats.maxMana;game.lockInput=false;
- // Gegnerzahl gedeckelt (Qualität statt Quantität) - Mutatoren skalieren Anzahl/Stats
- let B=game.B||BIOMES[game.biome],cnt=Math.min(14,Math.round((2+(game.level/2|0))*mutv('cnt')));
+ // Gegnerzahl: wenige, dafür bedeutsame Kämpfe. Tiefe 1-2: 1 | bis 9: max 4 | dann +1 alle 4 Tiefen bis 10.
+ // Mutatoren (Horde etc.) skalieren darauf, Cap 14.
+ let B=game.B||BIOMES[game.biome],lv=game.level;
+ let baseCnt=lv<=2?1:lv<=9?Math.min(4,1+Math.floor(lv/3)):Math.min(10,4+Math.floor((lv-9)/4));
+ let cnt=Math.min(14,Math.max(1,Math.round(baseCnt*mutv('cnt'))));
  for(let i=0;i<cnt;i++){
   let pos=getFree(),pow=rnd(game.level*0.8,game.level*1.3),key=B.mobs[rnd(0,B.mobs.length-1)],type=BESTIARY[key];
-  let hp=(Math.max(1,(2+pow*2.5+Math.sqrt(pow)*2)*type.st[0])|0),dmg=(Math.max(1,(1+pow*0.25)*type.st[1])|0),spd=(Math.max(1,10*type.st[2])|0);
+  let hp=(Math.max(1,(2+pow*1.8+Math.sqrt(pow)*2)*type.st[0])|0),dmg=(Math.max(1,(1+pow*0.25)*type.st[1])|0),spd=(Math.max(1,10*type.st[2])|0);
   let hue=rnd(0,360),adj=ADJ[rnd(0,ADJ.length-1)],ad=ADJ_DATA[adj];
   if(B.n.includes("EISHÖHLE"))hue=200;if(B.n.includes("VULKAN"))hue=0;if(B.n.includes("SUMPF"))hue=100;if(B.n.includes("NEKRO"))hue=120;
   let mob={x:pos.x,y:pos.y,hp:(hp*(ad.hp||1)*mutv('eHp'))|0,max:0,dmg:(dmg*(ad.dmg||1)*mutv('eDmg'))|0,bits:((15+pow*10)*type.st[3]*game.stats.lootMul*mutv('loot'))|0,hue,type:key,col:ad.col,fx:ad.fx,sight:ad.sight||6,name:`${adj} ${type.n}`,energy:rnd(0,50),speed:(spd*(ad.spd||1)*mutv('eSpd'))|0,state:type.ai};
@@ -1002,19 +1045,19 @@ function movePlayer(dx,dy){
   // Tutorial: Warnung wenn mit Gabel angegriffen wird obwohl bessere Waffe vorhanden
   if(game.level===0&&checkForkWarning())return false;
   if(game.timers.curse>0&&Math.random()<0.25){sfx('hit');addParticle(nx,ny,"VERFEHLT",'#888');game.p.actNoise=3;return true;}
-  // GIFTKLINGE: Schurke darf aus der Tarnung heraus zuschlagen (Hinterhalt)
+  // HINTERHALT (Schurken-Basisfähigkeit): Angriff aus der Tarnung = x2.5 Schaden, macht sichtbar
   let ambush=false;
   if(game.p.hidden){
-   if(meta.class==='ROGUE'&&meta.skillVar==='B'){ambush=true;game.p.hidden=false;addParticle(game.p.x,game.p.y,'HINTERHALT!','#0f0');}
+   if(meta.class==='ROGUE'){ambush=true;game.p.hidden=false;addParticle(game.p.x,game.p.y,'HINTERHALT!','#0f0');}
    else{addParticle(game.p.x,game.p.y,"Psst...",'#555');return false;}
   }
-  let cost=Math.max(1,3+(game.stats.stamCost||0));if(meta.stam<cost){addParticle(game.p.x,game.p.y,"MÜDE!",'#555');if(!tutShownExhaust){tutShownExhaust=true;showTutMsg(TUT_HINTS.exhausted);}return false;}
+  let cost=Math.max(1,(game.stats.atkCost||3)+(game.stats.stamCost||0));if(meta.stam<cost){addParticle(game.p.x,game.p.y,"MÜDE!",'#555');if(!tutShownExhaust){tutShownExhaust=true;showTutMsg(TUT_HINTS.exhausted);}return false;}
   meta.stam-=cost;game.exert=1;game.p.actNoise=3;sfx('attack');
   let isCrit=Math.random()<game.stats.critChance,dmg=game.stats.dmg*(isCrit?2:1);
-  if(ambush)dmg=Math.ceil(dmg*1.5);
+  if(ambush)dmg=Math.ceil(dmg*2.5);
   if(game.stats.lifesteal&&Math.random()<0.3)meta.hp=Math.min(meta.hp+(dmg*game.stats.lifesteal),game.stats.maxHp);
   hurt(t,dmg,false,isCrit?`KRIT ${dmg}!`:null,isCrit?'#ff0':null);
-  if(ambush&&t.hp>0){t.poisoned=4;addParticle(t.x,t.y,'VERGIFTET','#0f0');}
+  if(ambush&&meta.skillVar==='B'){if(t.hp>0){t.poisoned=4;addParticle(t.x,t.y,'VERGIFTET','#0f0');}meta.stam=Math.min(game.stats.maxStam,meta.stam+3);}
   // Glitchklinge: Krit teleportiert hinter das Ziel
   if(isCrit&&game.stats.blink){let bx=nx+dx,by=ny+dy;if(bx>0&&bx<GRID-1&&by>0&&by<GRID-1&&game.map[by][bx]!==1&&!game.enemies.some(e=>e.x===bx&&e.y===by)){game.p.x=bx;game.p.y=by;addParticle(bx,by,'BLINK','#f0f');sfx('glitch');checkPickups();}}
   game.timers.shake=2;return true;
@@ -1050,7 +1093,7 @@ function processTurns(){
   if(game.p.energy>=100){
    game.lockInput=false;
    if(game.p.hidden){meta.stam-=(game.stats.stealthDrain||3);if(meta.stam<=0){meta.stam=0;game.p.hidden=false;addParticle(game.p.x,game.p.y,"AUFGEDECKT!",'#f00');sfx('hit');}}
-   else{if(!game.exert)meta.stam=Math.min(game.stats.maxStam,meta.stam+(game.stats.stamRegen||1));game.exert=0;}
+   else{let rg=game.stats.stamRegen||1;if(game.exert)rg=(meta.class==='WARRIOR')?rg*0.5:0;meta.stam=Math.min(game.stats.maxStam,meta.stam+rg);game.exert=0;}
    if(game.stats.manaRegen>0)meta.mana=Math.min(game.stats.maxMana,meta.mana+game.stats.manaRegen);
    turnLogic();return;
   }
@@ -1270,6 +1313,9 @@ function turnLogic(){
   // Chaos-Glitch: UI durcheinander
   if(B.fx==='CHAOS')shuffleUI();
   for(let i=0;i<5+game.glitchCount*2;i++){let rx=rnd(1,GRID-2),ry=rnd(1,GRID-2);if([game.p,game.key,game.exit].every(e=>e.x!==rx||e.y!==ry)){game.map[ry][rx]=(Math.random()<0.5)?B.f(rx,ry):(game.map[ry][rx]?0:1);if(game.map[ry][rx]===1)game.walls[ry*GRID+rx]=B.hp;}}
+  // Anti-Einmauerung: Glitch darf den Spieler nie komplett einschließen
+  let nbs=[[1,0],[-1,0],[0,1],[0,-1]];
+  if(nbs.every(o=>game.map[game.p.y+o[1]][game.p.x+o[0]]===1)){let o=nbs[rnd(0,3)],px=game.p.x+o[0],py=game.p.y+o[1];if(px>0&&px<GRID-1&&py>0&&py<GRID-1){game.map[py][px]=0;game.walls[py*GRID+px]=0;addParticle(px,py,'RISS','#f0f');}}
   if(game.glitchCount>3){
    let pool=(game.glitchCount>6)?Object.keys(BESTIARY):B.mobs,key=pool[rnd(0,pool.length-1)],t=BESTIARY[key],diff=game.level*((game.glitchCount>6)?(game.glitchCount/2):1);
    let hp=((t.st[0]*15)+diff*2)*(1+game.glitchCount*0.2);
@@ -1496,7 +1542,8 @@ function pickRarityIdx(lvl,luck){
 }
 function addParticle(x,y,txt,col,spd=1){game.particles.push({x:x*TILE+16,y:y*TILE,txt,col,life:60,speed:0.5*spd});}
 function genItem(lvl){
- let mat=I_MATS[Math.min(I_MATS.length-1,Math.floor(Math.random()*(lvl/2+1)))],rIdx=pickRarityIdx(lvl,game.stats.shopLuck||0),rar=RARITIES[rIdx],type=I_TYPES[rnd(0,I_TYPES.length-1)];
+ // Material-Floor: ab Tiefe 8 kein Holz mehr, ab 16 min. Stahl usw. - Items müssen die Progression tragen
+ let mat=I_MATS[Math.min(I_MATS.length-1,Math.max(Math.floor(Math.random()*(lvl/2+1)),Math.min(5,Math.floor(lvl/8))))],rIdx=pickRarityIdx(lvl,game.stats.shopLuck||0),rar=RARITIES[rIdx],type=I_TYPES[rnd(0,I_TYPES.length-1)];
  // Unique-Roll: nur bei den zwei höchsten Rarities
  if(rIdx>=9&&Math.random()<0.2){
   let u=UNIQUES[rnd(0,UNIQUES.length-1)];
@@ -1533,7 +1580,7 @@ function calcStats(){
  game.stats={
   maxHp:C.hp,maxMana:C.mana,maxStam:C.stam,
   dmg:meta.dmg||1,mine:C.mine,noise:C.noise,speed:C.spd,
-  def:0,manaRegen:0,stamRegen:1,
+  def:0,manaRegen:0,stamRegen:C.stamRegen||1,atkCost:C.atkCost||3,
   critChance:0.05,dodgeChance:0.05,lootMul:1.0,
   glitchMod:0,spellDmg:0,stealthDrain:3,stealthCost:5,
   shopLuck:meta.shopLuck||0,torchCount:meta.torchCount||0,torchRadius:meta.torchRadius||150
@@ -1576,6 +1623,9 @@ function calcStats(){
  let eq=Object.values(game.equipment);
  if(eq.every(i=>i)&&eq.every(i=>i.col===eq[0].col)){game.stats.dmg+=2;game.stats.def+=1;game.stats.critChance+=0.05;game.stats.setBonus=1;}
 
+ // 5.6 Klassen-Schadensmultiplikator: formt die Kampf-Identität (Krieger 1.4 / Schurke 1.1 / Magier 0.7)
+ game.stats.dmg=Math.max(1,Math.round(game.stats.dmg*(C.dmgMul||1)));
+
  // 6. Caps & Floors
  game.stats.critChance=Math.min(1.0,game.stats.critChance);
  game.stats.dodgeChance=Math.min(0.75,game.stats.dodgeChance);
@@ -1587,15 +1637,15 @@ function calcStats(){
 }
 
 function save(){localStorage.setItem('GD4_Dark_Save',JSON.stringify({v:1,uid:meta.uid,bits:meta.bits,maxLvl:meta.maxLvl,shopSlots:meta.shopSlots,shopLuck:meta.shopLuck,invSlots:meta.invSlots,torchCount:meta.torchCount,lockedItems:meta.lockedItems||[],passiveSlots:meta.passiveSlots||3,upgradePool:meta.upgradePool||[],equippedPassives:meta.equippedPassives||[]}));}
-function showHelp(){let c=meta.class,skill=c==='WARRIOR'?'Wirbelwind (Rundumschaden)':c==='ROGUE'?'Unsichtbarkeit (Tarnung)':'Feuerball (Fernkampf)';alert(`STEUERUNG:\nWASD/Pfeile: Bewegen\nLeertaste: Warten\nB: ${skill}\nF: Bannkreis benutzen\nI: Inventar\n\nKLASSE: ${CLASSES[c].n}\n${c==='WARRIOR'?'Stark im Nahkampf, kann Wände schnell zerstören.':c==='ROGUE'?'Schnell und leise, kann sich verstecken.':'Mächtige Zauber, aber wenig Lebensenergie.'}\n\nTIPPS:\n- Sammle den Schlüssel, dann zum Ausgang\n- Vermeide den Realitätsbruch (Glitch)\n- Im Shop: L = Sperren, Leertaste = Neues Angebot`);}
-function delSave(){if(confirm('Alles löschen (inkl. Grimoire, Erfolge & Tutorial)?')){localStorage.removeItem('GD4_Dark_Save');localStorage.removeItem('GD4_Stats');localStorage.removeItem('GD4_Tut');location.reload();}}
+function showHelp(){let c=meta.class,skill=c==='WARRIOR'?'Wirbelwind (Rundumschaden)':c==='ROGUE'?'Unsichtbarkeit (Tarnung)':'Feuerball (Fernkampf)';alert(`STEUERUNG:\nWASD/Pfeile: Bewegen\nLeertaste: Warten\nB: ${skill}\nF: Bannkreis benutzen\nI: Inventar\n\nKLASSE: ${CLASSES[c].n}\n${c==='WARRIOR'?'Stark im Nahkampf, kann Wände schnell zerstören.':c==='ROGUE'?'Schnell und leise, kann sich verstecken.':'Mächtige Zauber, aber wenig Lebensenergie.'}\n\nTIPPS:\n- Sammle den Schlüssel, dann zum Ausgang\n- Vermeide den Realitätsbruch (Glitch)\n- Im Shop: L = Sperren, Leertaste = Neues Angebot\n\nAUDIO-STATUS: ${actx?('Kontext: '+actx.state):'noch nicht gestartet'}\nMusik: ${musOn?'AN':'AUS'} (M) | Sound: ${sndOn?'AN':'AUS'} (N)\nMusik-Timer: ${musTimer?'läuft':'gestoppt'} | Letzter Fehler: ${audioErr||'keiner'}`);}
+function delSave(){if(confirm('Alles löschen (inkl. Grimoire, Erfolge, Tutorial & Einstellungen)?')){['GD4_Dark_Save','GD4_Stats','GD4_Tut','GD4_Snd','GD4_Mus','GD4_FX'].forEach(k=>localStorage.removeItem(k));location.reload();}}
 // Spielstand-Export/Import als Base64-String (Gerätewechsel/Backup)
 function exportSave(){let data=btoa(unescape(encodeURIComponent(JSON.stringify({s:localStorage.getItem('GD4_Dark_Save'),t:localStorage.getItem('GD4_Stats'),u:localStorage.getItem('GD4_Tut')}))));prompt('Spielstand kopieren (Strg/Cmd+C):',data);}
 function importSave(){let d=prompt('Exportierten Spielstand einfügen:');if(!d)return;try{let o=JSON.parse(decodeURIComponent(escape(atob(d.trim()))));if(o.s)localStorage.setItem('GD4_Dark_Save',o.s);if(o.t)localStorage.setItem('GD4_Stats',o.t);if(o.u)localStorage.setItem('GD4_Tut',o.u);location.reload();}catch(e){alert('Ungültiger Spielstand.');}}
 // Leaderboard-Funktionen
 function packGear(){return Object.values(game.equipment).map(e=>e?Math.max(0,RARITIES.findIndex(r=>r.col===e.rarityCol)):0);}
 async function submitScore(){
- if(!meta.name)return;
+ if(!meta.name||IS_FILE)return;
  let payload=[meta.name,['WARRIOR','ROGUE','MAGE'].indexOf(meta.class),meta.maxLvl,Math.round((game.turnCount/game.level)*10)/10||0,stats.kills,stats.deaths,packGear(),Date.now(),meta.uid];
  try{
    const response = await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({data:payload}),signal:AbortSignal.timeout(10000)});
@@ -1608,6 +1658,7 @@ async function submitScore(){
  }catch(e){console.warn('Could not submit score:', e.message);}
 }
 async function fetchLeaderboard(){
+ if(IS_FILE){let c3=$('inv-content-3');if(c3)c3.innerHTML='<div style="padding:20px;text-align:center">Bestenliste offline (lokale Datei)<br><span style="font-size:0.8em;opacity:0.6">Verfügbar über einen lokalen Server oder glitchdungeon.netlify.app</span></div>';return;}
  try{
    let classIdx = ['WARRIOR','ROGUE','MAGE'].indexOf(meta.class);
    if (classIdx < 0) classIdx = 0;
@@ -1718,8 +1769,8 @@ function respawn(){
  // Bei Tutorial (Level 0): Reset auf Alte Gabel
  if(sl===0){
   let c=CLASSES[meta.class];
-  tutStartItem={id:Math.random(),name:'Start '+c.item,target:meta.class,slot:'WEAPON',col:'#aaa',mods:{dmg:2}};
-  if(meta.class==='MAGE')tutStartItem.mods={dmg:1,maxMana:5};if(meta.class==='ROGUE')tutStartItem.mods={dmg:2,speed:2};
+  tutStartItem={id:Math.random(),name:'Start '+c.item,target:meta.class,slot:'WEAPON',col:'#aaa',mods:{dmg:3}};
+  if(meta.class==='MAGE')tutStartItem.mods={dmg:1,maxMana:5,spellDmg:1};if(meta.class==='ROGUE')tutStartItem.mods={dmg:3,speed:2};
   let fork={id:0.999,name:'Alte Gabel',target:'NONE',slot:'WEAPON',col:'#654',mods:{dmg:0.5}};
   game.equipment.WEAPON=fork;calcStats();
  }
@@ -1805,7 +1856,13 @@ function cycleInvMode(){game.invMode=(game.mode==='SHOP')?((game.invMode===0)?2:
 function updateInvModeUI(){let btn=$('inv-mode-btn'),grid=$('inv-display');grid.className='inv-grid';if(game.invMode===0){btn.innerHTML="⚔️ AUSRÜSTEN <span style='font-size:0.7em;opacity:0.6'>(Klick zum Wechseln)</span>";btn.style.color="#0f0";btn.style.borderColor="#0f0";btn.style.background="#0a1a0a";}else if(game.invMode===1){btn.innerHTML="🗑️ WEGWERFEN <span style='font-size:0.7em;opacity:0.6'>(Klick zum Wechseln)</span>";btn.style.color="#f00";btn.style.borderColor="#f00";btn.style.background="#1a0a0a";grid.classList.add('mode-trash');}else if(game.invMode===2){btn.innerHTML="💰 VERKAUFEN <span style='font-size:0.7em;opacity:0.6'>(Klick zum Wechseln)</span>";btn.style.color="#ffd700";btn.style.borderColor="#ffd700";btn.style.background="#1a1a0a";grid.classList.add('mode-sell');}}
 let invTabIdx=0;
 function invTab(i){invTabIdx=i;document.querySelectorAll('.inv-tab').forEach((t,j)=>t.classList.toggle('active',i===j));for(let j=0;j<4;j++){let el=$('inv-content-'+j);if(el)el.style.display=i===j?'block':'none';}if(i===1)renderGrim();if(i===2)renderAch();if(i===3){let d=$('inv-content-3');if(!d){d=document.createElement('div');d.id='inv-content-3';d.style.display='block';$('inv-screen').appendChild(d);}fetchLeaderboard();}}
-function renderGrim(){let cnt=stats.grimoire.length,bk=stats.bossKills||0,h=`<div class="grim-count">MONSTER: ${cnt}/${GRIM_TOTAL} | BOSSE: ${bk}/${BOSSES.length}</div><div class="grim-grid">`;MONS.forEach(m=>{ADJ.forEach(a=>{let id=grimId(m,a),f=stats.grimoire.includes(id),ad=ADJ_DATA[a],bd=BESTIARY[m],st=bd.st,hp=((st[0]*10)|0),dmg=((st[1]*3)|0);h+=`<div class="grim-entry ${f?'found':'unseen'}" title="${f?`${a} ${bd.n}\nHP:~${hp} DMG:~${dmg}\nAI:${bd.ai}`:'???'}"><canvas width="32" height="32" class="grim-spr" style="width:16px;height:16px" data-m="${f?m:''}" data-c="${f?ad.col:'#222'}"></canvas><div style="color:${f?ad.col:'#333'};font-size:9px">${f?a:'?'}</div><div style="font-size:10px">${f?bd.n:'?'}</div></div>`;});});BOSSES.forEach((b,i)=>{let lvl=(i+1)*5,f=bk>i,c=b.col==='RAINBOW'?'#f0f':b.col;h+=`<div class="grim-entry ${f?'found':'unseen'}" title="${f?`${b.n} (Lvl ${lvl})\nHP:${b.hp} DMG:${b.dmg}\nTyp:${b.type}\n${b.desc}`:'??? (Lvl '+lvl+')'}"><canvas width="32" height="32" class="grim-spr" style="width:16px;height:16px" data-m="${f?'BOSS':''}" data-c="${f?c:'#222'}"></canvas><div style="color:${f?'#ffd700':'#333'};font-size:9px">${f?'BOSS':'?'}</div><div style="color:${f?c:'#333'};font-size:10px">${f?b.n:'???'}</div></div>`;});h+='</div>';$('inv-content-1').innerHTML=h;document.querySelectorAll('.grim-spr').forEach(c=>{let m=c.dataset.m,col=c.dataset.c;if(m)drawSprite(c.getContext('2d'),0,0,Math.random()*999|0,m,col);});}
+function renderGrim(){let cnt=stats.grimoire.length,bk=stats.bossKills||0,h='';
+ // MUSIK DER TIEFEN: alle Tracks von Anfang an probehörbar; AUTO folgt dem Biom
+ h+=`<div class="grim-count">🎵 MUSIK DER TIEFEN <span style="font-size:0.75em;opacity:0.7">(Probehören - beim Biomwechsel automatisch zurück auf AUTO)</span></div><div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:14px;justify-content:center">`;
+ h+=`<div class="mus-btn ${musOverride==null?'on':''}" onclick="setMus(null)">▶ AUTO (BIOM)</div>`;
+ BIOMES.forEach((b,i)=>{h+=`<div class="mus-btn ${musOverride===i?'on':''}" onclick="setMus(${i})">${b.n}</div>`;});
+ h+='</div>';
+ h+=`<div class="grim-count">MONSTER: ${cnt}/${GRIM_TOTAL} | BOSSE: ${bk}/${BOSSES.length}</div><div class="grim-grid">`;MONS.forEach(m=>{ADJ.forEach(a=>{let id=grimId(m,a),f=stats.grimoire.includes(id),ad=ADJ_DATA[a],bd=BESTIARY[m],st=bd.st,hp=((st[0]*10)|0),dmg=((st[1]*3)|0);h+=`<div class="grim-entry ${f?'found':'unseen'}" title="${f?`${a} ${bd.n}\nHP:~${hp} DMG:~${dmg}\nAI:${bd.ai}`:'???'}"><canvas width="32" height="32" class="grim-spr" style="width:16px;height:16px" data-m="${f?m:''}" data-c="${f?ad.col:'#222'}"></canvas><div style="color:${f?ad.col:'#333'};font-size:9px">${f?a:'?'}</div><div style="font-size:10px">${f?bd.n:'?'}</div></div>`;});});BOSSES.forEach((b,i)=>{let lvl=(i+1)*5,f=bk>i,c=b.col==='RAINBOW'?'#f0f':b.col;h+=`<div class="grim-entry ${f?'found':'unseen'}" title="${f?`${b.n} (Lvl ${lvl})\nHP:${b.hp} DMG:${b.dmg}\nTyp:${b.type}\n${b.desc}`:'??? (Lvl '+lvl+')'}"><canvas width="32" height="32" class="grim-spr" style="width:16px;height:16px" data-m="${f?'BOSS':''}" data-c="${f?c:'#222'}"></canvas><div style="color:${f?'#ffd700':'#333'};font-size:9px">${f?'BOSS':'?'}</div><div style="color:${f?c:'#333'};font-size:10px">${f?b.n:'???'}</div></div>`;});h+='</div>';$('inv-content-1').innerHTML=h;document.querySelectorAll('.grim-spr').forEach(c=>{let m=c.dataset.m,col=c.dataset.c;if(m)drawSprite(c.getContext('2d'),0,0,Math.random()*999|0,m,col);});}
 function renderAch(){let done=ACHIEVEMENTS.filter(a=>stats.ach&(1<<a.id)).length,h=`<div class="ach-count">ERFOLGE: ${done}/${ACHIEVEMENTS.length}</div><div class="ach-list">`;ACHIEVEMENTS.forEach(a=>{let unlocked=stats.ach&(1<<a.id),v;if(a.k==='grimCount')v=stats.grimoire.length;else if(a.k==='biomesVisited'){let c=0;for(let i=0;i<10;i++)if(stats.biomesVisited&(1<<i))c++;v=c;}else v=stats[a.k];let prog=unlocked?'':`<div class="ach-prog">${Math.min(v,a.t)}/${a.t}</div>`;h+=`<div class="ach-item ${unlocked?'':'locked'}"><div class="ach-icon">${unlocked?a.i:'🔒'}</div><div class="ach-info"><div class="ach-name">${esc(a.n)}</div><div class="ach-desc">${esc(a.d)}</div>${prog}</div></div>`;});$('inv-content-2').innerHTML=h+'</div>';}
 function renderInv(){
  let h='';['WEAPON','ARMOR','RELIC'].forEach(s=>{let it=game.equipment[s],st=it?`border-color:${it.rarityCol||'#333'};box-shadow:0 0 8px ${it.rarityCol||'#000'};`:'';h+=`<div class="inv-slot ${it?'equipped':''}" style="${st}" onclick="inv_unequip('${s}')"><div class="equip-slot-label">${s}</div>${it?`<div style="color:${it.col}">${esc(it.name)}</div>${renderMods(it)}`:'<span style="color:#333">LEER</span>'}</div>`;});
@@ -1912,47 +1969,128 @@ function unequipPassive(slotIdx){
  calcStats();save();renderInv();
 }
 
-function sfx(id){if(!actx)return;const t=actx.currentTime,o=actx.createOscillator(),g=actx.createGain();o.connect(g);g.connect(SFXG||actx.destination);if(id==='step'){o.type='triangle';o.frequency.setValueAtTime(50,t);o.frequency.exponentialRampToValueAtTime(10,t+0.1);g.gain.setValueAtTime(0.1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.1);o.start(t);o.stop(t+0.1);}else if(id==='attack'){o.type='sawtooth';o.frequency.setValueAtTime(100,t);o.frequency.linearRampToValueAtTime(50,t+0.1);g.gain.setValueAtTime(0.1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.1);o.start(t);o.stop(t+0.1);}else if(id==='hit'){o.type='sawtooth';o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(10,t+0.3);g.gain.setValueAtTime(0.2,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.3);o.start(t);o.stop(t+0.3);}else if(id==='kill'){o.type='sine';o.frequency.setValueAtTime(440,t);o.frequency.exponentialRampToValueAtTime(880,t+0.2);g.gain.setValueAtTime(0.1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.4);o.start(t);o.stop(t+0.4);}else if(id==='shop'){o.type='triangle';o.frequency.setValueAtTime(600,t);g.gain.setValueAtTime(0.05,t);g.gain.exponentialRampToValueAtTime(0.001,t+1.0);o.start(t);o.stop(t+1.0);}else if(id==='glitch'){o.type='sawtooth';o.frequency.setValueAtTime(Math.random()*200+50,t);o.frequency.linearRampToValueAtTime(Math.random()*200+50,t+0.2);g.gain.setValueAtTime(0.1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.2);o.start(t);o.stop(t+0.2);}else if(id==='gulp'){o.type='triangle';o.frequency.setValueAtTime(300,t);o.frequency.exponentialRampToValueAtTime(150,t+0.15);g.gain.setValueAtTime(0.2,t);g.gain.linearRampToValueAtTime(0,t+0.15);o.start(t);o.stop(t+0.15);}}
+function sfx(id){if(!actx)return;try{const t=actx.currentTime,o=actx.createOscillator(),g=actx.createGain();o.connect(g);g.connect(SFXG||actx.destination);if(id==='step'){o.type='triangle';o.frequency.setValueAtTime(50,t);o.frequency.exponentialRampToValueAtTime(10,t+0.1);g.gain.setValueAtTime(0.1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.1);o.start(t);o.stop(t+0.1);}else if(id==='attack'){o.type='sawtooth';o.frequency.setValueAtTime(100,t);o.frequency.linearRampToValueAtTime(50,t+0.1);g.gain.setValueAtTime(0.1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.1);o.start(t);o.stop(t+0.1);}else if(id==='hit'){o.type='sawtooth';o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(10,t+0.3);g.gain.setValueAtTime(0.2,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.3);o.start(t);o.stop(t+0.3);}else if(id==='kill'){o.type='sine';o.frequency.setValueAtTime(440,t);o.frequency.exponentialRampToValueAtTime(880,t+0.2);g.gain.setValueAtTime(0.1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.4);o.start(t);o.stop(t+0.4);}else if(id==='shop'){o.type='triangle';o.frequency.setValueAtTime(600,t);g.gain.setValueAtTime(0.05,t);g.gain.exponentialRampToValueAtTime(0.001,t+1.0);o.start(t);o.stop(t+1.0);}else if(id==='glitch'){o.type='sawtooth';o.frequency.setValueAtTime(Math.random()*200+50,t);o.frequency.linearRampToValueAtTime(Math.random()*200+50,t+0.2);g.gain.setValueAtTime(0.1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.2);o.start(t);o.stop(t+0.2);}else if(id==='gulp'){o.type='triangle';o.frequency.setValueAtTime(300,t);o.frequency.exponentialRampToValueAtTime(150,t+0.15);g.gain.setValueAtTime(0.2,t);g.gain.linearRampToValueAtTime(0,t+0.15);o.start(t);o.stop(t+0.15);}}catch(e){if(!audioErr){audioErr=e.message||String(e);toast('⚠️ SOUND-FEHLER: '+audioErr);}}}
 // === GENERATIVE MUSIK ===
-// Pro Biom ein Profil: s=Skala, r=Grundton(Hz), bpm, w=Wellenform, bell=lange Glockentöne, det=Verstimmung(Chaos)
+// Pro Biom ein Profil: s=Skala, r=Grundton(Hz), bpm, w=Wellenform, bell=Glockentöne, det=Verstimmung,
+// d=[Kick,HiHat,Snare] als 16-Step-Bitmasken (Bit i = Step i) - jedes Biom hat sein eigenes Schlagzeug-Pattern
 const SCALES={dor:[0,2,3,5,7,9,10],phr:[0,1,3,5,7,8,10],min:[0,2,3,5,7,8,10],pen:[0,3,5,7,10],chr:[0,1,2,3,4,5,6,7,8,9,10,11]};
 const MUS=[
- {s:'dor',r:110,bpm:52,w:'triangle'},          // Katakomben: dunkel-getragen
- {s:'pen',r:220,bpm:46,w:'sine',bell:1},       // Eishöhle: kalte Glocken
- {s:'min',r:98,bpm:58,w:'triangle'},           // Sumpf: zäh
- {s:'phr',r:65,bpm:68,w:'sawtooth'},           // Vulkan: tiefes Grollen
- {s:'pen',r:165,bpm:60,w:'sine',det:1},        // Astral: schwebend-verstimmt
- {s:'phr',r:82,bpm:48,w:'triangle'},           // Nekro: Totenmesse
- {s:'pen',r:262,bpm:56,w:'sine',bell:1},       // Kristall: helle Resonanz
- {s:'min',r:55,bpm:38,w:'sine'},               // Leere: fast Stille
- {s:'dor',r:147,bpm:72,w:'square'},            // Labyrinth: nervöses Ticken
- {s:'chr',r:110,bpm:84,w:'sawtooth',det:1}     // Chaos: atonal
+ {s:'dor',r:110,bpm:52,w:'triangle',d:[0x0101,0x0000,0x1000]},      // Katakomben: Herzschlag-Kick
+ {s:'pen',r:220,bpm:46,w:'sine',bell:1,d:[0x1001,0x4444,0x0000]},   // Eishöhle: spröde Hats
+ {s:'min',r:98,bpm:58,w:'triangle',d:[0x0909,0x2222,0x1000]},       // Sumpf: schleppender Groove
+ {s:'phr',r:65,bpm:68,w:'sawtooth',d:[0x1111,0xAAAA,0x1010]},       // Vulkan: treibend
+ {s:'pen',r:165,bpm:60,w:'sine',det:1,d:[0x1041,0x8888,0x0000]},    // Astral: ungerade Akzente
+ {s:'phr',r:82,bpm:48,w:'triangle',d:[0x0101,0x0808,0x1000]},       // Nekro: Prozessionstrommel
+ {s:'pen',r:262,bpm:56,w:'sine',bell:1,d:[0x1001,0x5252,0x0000]},   // Kristall: glitzernde Hats
+ {s:'min',r:55,bpm:38,w:'sine',d:[0x0001,0x0000,0x0000]},           // Leere: ein einzelner Puls
+ {s:'dor',r:147,bpm:72,w:'square',d:[0x1111,0xFFFF,0x1010]},        // Labyrinth: tickende Uhr
+ {s:'chr',r:110,bpm:84,w:'sawtooth',det:1,d:[0x1391,0xAAAA,0x0210]} // Chaos: gebrochenes Pattern
 ];
-let musTimer=null,musStep=0,noiseBuf=null;
+let musTimer=null,musStep=0,noiseBuf=null,musDanger=0,musOverride=null,musLastBiome=-1;
+// HARMONIE: Akkordfolge in Skalenstufen (i-VI-iv-v), ein Akkord pro Takt (16 Steps)
+const PROG=[0,5,3,4];
+// === LEITMOTIV: EIN Thema für das ganze Spiel ===
+// Generativ nach Harmonielehre: 48 deterministische Kandidaten (16 Töne = Vorder-/Nachsatz),
+// bewertet nach klassischen Regeln (Schrittbewegung, Leap-Recovery, EIN Höhepunkt im Nachsatz,
+// Bogen-Kontur, Halbschluss auf der Dominante, Ganzschluss auf der Tonika). Der beste gewinnt.
+// Da der Seed fest ist, hat das Spiel für immer DIESELBE Melodie - in jedem Biom neu eingefärbt
+// durch dessen Skala, Grundton und Klangfarbe.
+function genTheme(){
+ let best=null,bs=-1e9;
+ for(let cand=1;cand<49;cand++){
+  let s=cand*2654435761|0,r=()=>{s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};
+  let mel=[0],p=0;
+  for(let i=1;i<16;i++){
+   p+=[-2,-1,-1,1,1,1,2,3][(r()*8)|0];p=Math.max(-3,Math.min(8,p));
+   // Schwerzeiten rasten auf einem Akkordton des jeweiligen Taktes ein (Takt 1: PROG[0], Takt 2: PROG[1])
+   if(i%2===0){let ch=PROG[(i>>3)],bestC=p,bd=99;for(let o=-7;o<=7;o+=7)for(let k of[0,2,4]){let c=ch+k+o;if(Math.abs(p-c)<bd){bd=Math.abs(p-c);bestC=c;}}p=bestC;}
+   mel.push(p);
+  }
+  mel[7]=4;mel[15]=0; // Halbschluss (Dominante) / Ganzschluss (Tonika)
+  // Harmonielehre-Score
+  let sc=0,mx=Math.max(...mel),mn=Math.min(...mel),climaxes=mel.filter(n=>n===mx).length,ci=mel.indexOf(mx);
+  for(let i=1;i<16;i++){
+   let iv=mel[i]-mel[i-1],pv=i>1?mel[i-1]-mel[i-2]:0;
+   if(Math.abs(iv)<=2)sc+=2;                        // Schrittbewegung erwünscht
+   if(Math.abs(iv)>4)sc-=4;                          // große Sprünge bestraft
+   if(Math.abs(pv)>=3&&iv*pv<0&&Math.abs(iv)<=2)sc+=3; // Leap-Recovery: Sprung -> Gegenschritt
+   if(iv===0&&pv===0)sc-=3;                          // Tonwiederholungs-Ketten
+  }
+  if(climaxes===1)sc+=6;                             // genau EIN Höhepunkt
+  if(ci>=8&&ci<=13)sc+=5;                            // ... im Nachsatz, vor der Kadenz
+  if(mx-mn>8)sc-=(mx-mn-8)*3;                        // Ambitus etwa eine None
+  if(new Set(mel).size>=6)sc+=3;                     // melodische Vielfalt
+  if(sc>bs){bs=sc;best=mel;}
+ }
+ return best;
+}
+const THEME=genTheme();
 function tone(f,w,t,dur,vol,det){if(!actx||!MUSG)return;let o=actx.createOscillator(),g=actx.createGain();o.type=w;o.frequency.value=f;if(det)o.detune.value=det;o.connect(g);g.connect(MUSG);g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(vol,t+0.03);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.start(t);o.stop(t+dur+0.05);}
-function mnoise(t,dur,vol,fq){if(!actx||!MUSG)return;if(!noiseBuf){noiseBuf=actx.createBuffer(1,actx.sampleRate*0.2|0,actx.sampleRate);let d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;}let s=actx.createBufferSource(),g=actx.createGain(),f=actx.createBiquadFilter();s.buffer=noiseBuf;f.type='lowpass';f.frequency.value=fq||400;s.connect(f);f.connect(g);g.connect(MUSG);g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);s.start(t);s.stop(t+dur+0.02);}
+function mnoise(t,dur,vol,fq,tp){if(!actx||!MUSG)return;if(!noiseBuf){noiseBuf=actx.createBuffer(1,actx.sampleRate*0.2|0,actx.sampleRate);let d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;}let s=actx.createBufferSource(),g=actx.createGain(),f=actx.createBiquadFilter();s.buffer=noiseBuf;f.type=tp||'lowpass';f.frequency.value=fq||400;s.connect(f);f.connect(g);g.connect(MUSG);g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);s.start(t);s.stop(t+dur+0.02);}
+// Schlagzeug-Stimmen: 0=Kick (Sinus-Drop), 1=HiHat (Highpass-Noise), 2=Snare (Bandpass-Noise)
+function drum(t,k,vol){
+ if(!actx||!MUSG||vol<=0.001)return;
+ if(k===0){let o=actx.createOscillator(),g=actx.createGain();o.type='sine';o.frequency.setValueAtTime(110,t);o.frequency.exponentialRampToValueAtTime(35,t+0.12);o.connect(g);g.connect(MUSG);g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.0001,t+0.14);o.start(t);o.stop(t+0.16);}
+ else if(k===1)mnoise(t,0.03,vol,6500,'highpass');
+ else mnoise(t,0.09,vol,1800,'bandpass');
+}
 function musTick(){
- let m=MUS[game.biome]||MUS[0];
+ let mi=musOverride!=null?musOverride:game.biome,m=MUS[mi]||MUS[0];
  let inGame=game.mode==='GAME'&&game.level>0;
- let urgent=inGame&&game.timers.glitch<6; // Realität bricht gleich: Tempo & Dichte hoch
- let bpm=m.bpm*(urgent?1.3:1)*(game.isBossLevel?1.15:1);
+ let urgent=inGame&&game.timers.glitch<6;
+ // GEFAHR-PEGEL 0..1: Aggro + niedriger Lebensbalken + nahender Glitch.
+ // Wird stufenlos nachgeführt (Lerp) - kein abruptes Umschalten.
+ let tgt=0;
+ if(inGame){
+  let aggro=game.enemies.some(e=>e.state==='HUNT');
+  let hf=Math.max(0,Math.min(1,meta.hp/(game.stats.maxHp||1)));
+  tgt=Math.min(1,(aggro?0.45:0)+(1-hf)*0.55+(urgent?0.3:0));
+ }
+ musDanger+=(tgt-musDanger)*0.08;
+ if(!isFinite(musDanger))musDanger=0; // Sicherung: NaN würde den Sequencer lautlos zerstören
+ let bpm=m.bpm*(1+musDanger*0.3)*(game.isBossLevel?1.15:1); // Tempo wächst weich mit der Gefahr
  let stepDur=60/bpm/2;
+ if(!isFinite(stepDur)||stepDur<0.05)stepDur=0.3;
  musTimer=setTimeout(musTick,stepDur*1000);
  if(!actx||!musOn||document.hidden)return;
+ // Watchdog: Safari lässt Kontexte gern 'suspended' - bei jedem Tick erneut anstoßen
+ if(actx.state!=='running'){actx.resume();return;}
+ try{
  let t=actx.currentTime,sc=SCALES[m.s],root=m.r*(game.isBossLevel?0.5:1);
  musStep++;
- // Drone: getragener Grundton + Quinte, alle 16 Steps neu angestoßen
+ // Harmonie-Kontext: aktueller Takt & Akkord; dg() wandelt Skalenstufen in Halbtöne (mit Oktav-Übertrag)
+ let bar=musStep>>4,cd=PROG[bar%PROG.length],L=sc.length;
+ let dg=d=>sc[((d%L)+L)%L]+12*Math.floor(d/L);
+ // Drone: Tonika-Orgelpunkt + Quinte; dazu leise der aktuelle Akkord-Grundton (harmonische Bewegung)
  if(musStep%16===1){tone(root/2,m.w,t,stepDur*16,0.05);tone(root/2*1.5,m.w,t,stepDur*16,0.025);
+  tone(root/2*Math.pow(2,dg(cd)/12),m.w,t,stepDur*16,0.028);
   if(game.isBossLevel)tone(root/2*1.06,'sawtooth',t,stepDur*16,0.02);} // Halbton-Reibung im Bosskampf
- // Arpeggio: zufällige Skalentöne; Stealth dünnt aus, Gefahr verdichtet
- let dens=game.p.hidden?0.12:(urgent?0.65:(game.mode==='SHOP'?0.2:0.35));
- if(Math.random()<dens){let n=sc[rnd(0,sc.length-1)]+12*rnd(0,1),f=root*Math.pow(2,n/12);
-  tone(f,m.bell?'sine':m.w,t,stepDur*(m.bell?5:0.9),0.04,m.det?rnd(-18,18):0);}
- // Perkussion: gefiltertes Rauschen auf den Schlag
- if(musStep%4===0)mnoise(t,0.06,urgent?0.05:0.028,urgent?900:400);
- if(urgent&&musStep%4===2)mnoise(t,0.04,0.035,1400);
+ // Arpeggio: nur noch AKKORDEIGENE Töne (Grundton/Terz/Quinte) - konsonant statt zufällig
+ let dens=game.p.hidden?0.12:(game.mode==='SHOP'?0.2:0.22+musDanger*0.35);
+ if(Math.random()<dens){let n=dg(cd+[0,2,4][rnd(0,2)]+L*rnd(0,1)),f=root*Math.pow(2,n/12);
+  tone(f,m.bell?'sine':m.w,t,stepDur*(m.bell?5:0.9),0.03,m.det?rnd(-18,18):0);}
+ // LEITMOTIV: das Spiel-Thema erklingt 2 Takte lang zu Beginn jedes 8-Takt-Zyklus (und damit bei
+ // jedem Levelstart), dann übernehmen wieder die generativen Passagen. Phrasenenden werden gehalten.
+ let tb=bar%8;
+ if(tb<2&&musStep%2===0&&!game.p.hidden){
+  let ti=(tb<<3)|((musStep&15)>>1),nm=dg(THEME[ti]);
+  tone(root*2*Math.pow(2,nm/12),m.bell?'sine':'triangle',t,stepDur*((ti&7)===7?4:1.7),0.04+musDanger*0.01,m.det?rnd(-10,10):0);
+ }
+ // SCHLAGZEUG: ab Biom 2 dezent vorhanden; Gefahr hebt Lautstärke stufenlos an (in Biom 1 nur bei Gefahr)
+ let D=m.d||[0,0,0],st=musStep&15,dv=(mi>0?0.022:0)+musDanger*0.055;
+ if(!game.p.hidden&&dv>0.008){
+  if((D[0]>>st)&1)drum(t,0,dv*2.2);
+  if((D[1]>>st)&1)drum(t,1,dv*0.7);
+  if((D[2]>>st)&1)drum(t,2,dv*1.3);
+  if(musDanger>0.55&&(st&3)===2)drum(t,0,dv*1.1); // hohe Gefahr: zusätzliche Offbeat-Kicks
+ }
+ // Grund-Puls (weiches Rauschen) bleibt als Fundament erhalten
+ if(musStep%4===0)mnoise(t,0.06,0.026+musDanger*0.02,400+musDanger*500);
+ }catch(e){if(!audioErr){audioErr=e.message||String(e);toast('⚠️ MUSIK-FEHLER: '+audioErr);}}
 }
 function startMusic(){if(!musTimer)musTick();}
+// Probehören (Grimoire): feste Track-Wahl; null = automatisch dem Biom folgen
+function setMus(i){au();musOverride=i;sfx('step');if(typeof renderGrim==='function'&&$('inv-content-1'))renderGrim();}
 
 window.addEventListener('keydown',e=>{au();
  // Tutorial-Nachricht mit beliebiger Taste schließen
@@ -1961,9 +2099,8 @@ window.addEventListener('keydown',e=>{au();
  if(e.key==='n'||e.key==='N'){toggleSnd();return;}
  if(choice){let k=parseInt(e.key);if(k>=1&&k<=choice.opts.length)pickChoice(k-1);return;}
  if(game.timers.shake>0)return;if(game.mode==='GAME')inputGame(e);else if(game.mode==='SHOP')inputShop(e);});
-// Initiale Button-/Toggle-Zustände
-if(!sndOn)$('btn-snd').style.opacity='0.35';
-if(!musOn)$('btn-mus').style.opacity='0.35';
+// Initiale Button-/Toggle-Zustände (Stummschaltung muss sofort sichtbar sein)
+sndUI();
 if(fxRed)$('fx-toggle').innerText='EFFEKTE: REDUZIERT';
 function inputShop(e){
  // Shop-Tutorial beim ersten Öffnen
@@ -2023,9 +2160,10 @@ CVS.onclick=e=>{au();
  // Shop-Tutorial beim ersten Öffnen
  if(game.level===0&&!tutShownShop){tutShownShop=true;showTutMsg(TUT_HINTS.shop);return;}
  let s=640/rect.height,x=(e.clientX-rect.left)*s,y=(e.clientY-rect.top)*s;if(y>=440&&y<476){if(x>=60&&x<320)shopReroll();else if(x>=340&&x<600)game.lockMode=!game.lockMode;}else{let i=Math.floor((y-108)/42);if(i>=0&&i<game.shopItems.length)shopAction(i);}return;}let tx=((e.clientX-rect.left)/(rect.width/GRID))|0,ty=((e.clientY-rect.top)/(rect.height/GRID))|0;if(game.aiming&&meta.class==='MAGE'){castFireball(tx,ty);return;}let t=game.enemies.find(en=>en.x===tx&&en.y===ty);if(t){let dx=tx-game.p.x,dy=ty-game.p.y;if(Math.abs(dx)+Math.abs(dy)===1){movePlayer(dx,dy)&&endTurn();}else stepTowards(tx,ty);}else stepTowards(tx,ty);};
-function castFireball(tx,ty){if(meta.mana<5){addParticle(game.p.x,game.p.y,"KEIN MANA",'#0af');game.aiming=false;updateUI();return;}let dist=Math.hypot(tx-game.p.x,ty-game.p.y);if(dist>6){addParticle(game.p.x,game.p.y,"ZU WEIT!",'#f00');return;}if(!hasLOS(game.p.x,game.p.y,tx,ty)){addParticle(tx,ty,"BLOCKIERT",'#f00');return;}meta.mana-=5;sfx('glitch');game.aiming=false;updateUI();addHitFX(tx,ty,'burst','#f60');let t=game.enemies.find(e=>e.x===tx&&e.y===ty);if(t){hurt(t,game.stats.dmg*1.5+(game.stats.spellDmg||0)*3,false,null,null,true);if(t.hp>0){t.state='HUNT';if(meta.skillVar==='B')t.stun=(t.stun||0)+1;}}else addParticle(tx,ty,"BOOM!",'#f60');for(let sy=-1;sy<=1;sy++)for(let sx=-1;sx<=1;sx++){if(sx===0&&sy===0)continue;let st=game.enemies.find(e=>e.x===tx+sx&&e.y===ty+sy);if(st){hurt(st,Math.floor(game.stats.dmg),false,`SPLASH -${Math.floor(game.stats.dmg)}`,'#f60',true);if(meta.skillVar==='B'&&st.hp>0)st.stun=(st.stun||0)+1;}}
+function castFireball(tx,ty){if(meta.mana<5){addParticle(game.p.x,game.p.y,"KEIN MANA",'#0af');game.aiming=false;updateUI();return;}let dist=Math.hypot(tx-game.p.x,ty-game.p.y);if(dist>6){addParticle(game.p.x,game.p.y,"ZU WEIT!",'#f00');return;}if(!hasLOS(game.p.x,game.p.y,tx,ty)){addParticle(tx,ty,"BLOCKIERT",'#f00');return;}meta.mana-=5;sfx('glitch');game.aiming=false;updateUI();addHitFX(tx,ty,'burst','#f60');let fbDmg=Math.max(2,Math.round(game.stats.dmg+(game.stats.spellDmg||0)*3.5)),spDmg=Math.max(1,Math.floor(fbDmg*0.4));
+ let t=game.enemies.find(e=>e.x===tx&&e.y===ty);if(t){hurt(t,fbDmg,false,null,null,true);if(t.hp>0){t.state='HUNT';if(meta.skillVar==='B')t.stun=(t.stun||0)+1;}}else addParticle(tx,ty,"BOOM!",'#f60');for(let sy=-1;sy<=1;sy++)for(let sx=-1;sx<=1;sx++){if(sx===0&&sy===0)continue;let st=game.enemies.find(e=>e.x===tx+sx&&e.y===ty+sy);if(st){hurt(st,spDmg,false,`SPLASH -${spDmg}`,'#f60',true);if(meta.skillVar==='B'&&st.hp>0)st.stun=(st.stun||0)+1;}}
  // KETTENBLITZ: springt auf ein weiteres Ziel in der Nähe des Einschlags
- if(meta.skillVar==='A'){let t2=game.enemies.find(e=>e!==t&&Math.abs(e.x-tx)+Math.abs(e.y-ty)>1&&Math.hypot(e.x-tx,e.y-ty)<3.5);if(t2){hurt(t2,Math.ceil((game.stats.dmg*1.5+(game.stats.spellDmg||0)*3)*0.6),false,'KETTE!','#0ff',true);addHitFX(t2.x,t2.y,'burst','#0ff');}}
+ if(meta.skillVar==='A'){let t2=game.enemies.find(e=>e!==t&&Math.abs(e.x-tx)+Math.abs(e.y-ty)>1&&Math.hypot(e.x-tx,e.y-ty)<3.5);if(t2){hurt(t2,Math.ceil(fbDmg*0.6),false,'KETTE!','#0ff',true);addHitFX(t2.x,t2.y,'burst','#0ff');}}
  game.p.energy-=100;processTurns();}
 function hasLOS(x0,y0,x1,y1){let dx=Math.abs(x1-x0),dy=Math.abs(y1-y0),sx=(x0<x1)?1:-1,sy=(y0<y1)?1:-1,err=dx-dy;while(true){if(x0===x1&&y0===y1)return true;if(game.map[y0][x0]===1)return false;let e2=2*err;if(e2>-dy){err-=dy;x0+=sx;}if(e2<dx){err+=dx;y0+=sy;}}}
 function stepTowards(tx,ty){let dx=Math.sign(tx-game.p.x),dy=Math.sign(ty-game.p.y);if(dx!==0&&dy!==0){if(Math.abs(tx-game.p.x)>Math.abs(ty-game.p.y))dy=0;else dx=0;}movePlayer(dx,dy)&&endTurn();}
