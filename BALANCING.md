@@ -137,3 +137,36 @@ liefern die Dichte-Spitzen.
 **Empfohlener Playtest-Fokus:** Krieger in der Eishöhle (Tiefe 6–9) – dort war der
 alte Frust am größten; und Schurken-Loop (Tarnung → Hinterhalt → Flucht → erneut tarnen)
 auf Ausdauer-Gefühl prüfen.
+
+---
+
+## 5. Balance-Werkzeuge (Telemetrie + Monte-Carlo-Simulator)
+
+### 5.1 In-Game-Telemetrie
+Das Spiel protokolliert pro Ebene einen kompakten Datensatz (Ring-Puffer, letzte 200 Ebenen,
+localStorage `GD4_BL`): Tiefe, Klasse, Biom, Mutatoren, Züge, Wartezüge, Schaden
+verursacht/erlitten, Kills, Crits, Ausdauer-Leerläufe (`starve`), Glitches, HP Start/Ende,
+Todesursache (`foe`). Export über den **BALANCE-LOG**-Button im Start-Screen-Footer.
+
+**Workflow:** Normal spielen → Log exportieren → zusammen mit subjektiven Eindrücken
+(„Tiefe 12–15 zäh", „Boss 2 trivial") abgeben. Die Kombination aus Gefühl und Zahlen
+lokalisiert Probleme präzise (z.B. „zäh" + hohe `waits`/`starve` = Ressourcenproblem;
+„zäh" + hohe `turns` bei niedrigem `dT` = Damage-Schwamm-Problem).
+
+### 5.2 Headless-Simulator (nicht ausgeliefert, `scratchpad/sim.js`)
+Die Spiellogik läuft vollständig in Node (kein Browser nötig) – ein Greedy-Bot spielt
+komplette Runs (30/Klasse) und liefert Überlebenskurven, Todesursachen und die
+Telemetrie-Metriken. Der Bot kitet nicht und kauft nicht ein → **Untergrenze** der
+Spielstärke: Was der Bot schafft, schafft jeder; wo alle Bots sterben, lohnt ein Blick.
+
+### 5.3 Erste Sim-Befunde & daraus abgeleitete Fixes (Juli 2026)
+- **Boss 1 war rechnerisch unschaffbar für Nahkämpfer** (150 HP bei ~7–14 Spieler-DMG,
+  Kontaktschaden 10 im 2er-Radius): 28/30 Krieger-Bots starben dort.
+  → Knochenfürst **150→110 HP, 10→7 DMG**; Yeti moderat 180→150/12→10.
+  Boss bleibt der Skill-Check (Bot ohne Kiten: ~5 % Erfolg), ist aber mit Hit&Run fair.
+- **Magier hatte basal `manaRegen: 0`** – das Tutorial behauptete Regeneration, real gab es
+  nur die Auffüllung beim Ebenenwechsel (4 Feuerbälle/Ebene). → Basis-Regeneration **0.25/Zug**.
+- **Krieger-Ausdauer-Fix bestätigt:** `starve = 0.0` über alle Tiefenbänder (vorher Kernproblem).
+- **Beobachtung für die nächste Runde:** Der eine Bot, der Boss 1 überlebte, lief danach
+  fast ungebremst bis Tiefe 25 (Schadens-Quote ≤ 0.23) – Verdacht: nach Boss 1 zu flach.
+  Entscheidung erst nach menschlichem Telemetrie-Log.
