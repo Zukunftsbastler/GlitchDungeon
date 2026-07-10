@@ -109,7 +109,7 @@ Alternativ: Maussteuerung (Klick zum Bewegen/Angreifen, Magier: Klick für Feuer
 
 **Stack:** Reines HTML5 + Vanilla JavaScript (~2.000 Zeilen, komplett in einer Datei)
 
-- **Rendering:** HTML5 Canvas mit prozeduralen Pixel-Sprites
+- **Rendering:** HTML5 Canvas mit prozeduralen Pixel-Sprites; **Kreaturen-Generator** (16×16: Archetyp-Maske + gespiegeltes Hash-Rauschen + 3-Ton-Rampe + Kontur + Leuchtaugen – jede Kreatur ein Unikat, Klassiker wie Skelett & Mimic bleiben handgezeichnet), Hi-DPI-Canvas (scharfe Lichter/Texte, grobe Pixel), **Glitch-Post-FX** (Zeilen-Versatz + Kanaltrennung beim Realitätsbruch, dezente Scanlines, Biom-Farbgrading), bullige Boss-Sprites mit Kontur & Dithering, Rarity-Schein unter Bodenloot
 - **Audio:** Web Audio API für generierte Soundeffekte **und generative Musik** (keine Audio-Assets)
 - **Beleuchtung:** Echtzeit-Lichtsystem mit Fackeln und Spieler-Radius
 - **Zufallsquelle:** Math.random + seedbarer Mulberry32 für den Daily-Modus

@@ -166,6 +166,10 @@ Spielstärke: Was der Bot schafft, schafft jeder; wo alle Bots sterben, lohnt ei
   Boss bleibt der Skill-Check (Bot ohne Kiten: ~5 % Erfolg), ist aber mit Hit&Run fair.
 - **Magier hatte basal `manaRegen: 0`** – das Tutorial behauptete Regeneration, real gab es
   nur die Auffüllung beim Ebenenwechsel (4 Feuerbälle/Ebene). → Basis-Regeneration **0.25/Zug**.
+- **Magier-Nachjustierung (Playtest-Feedback: „knipst mit genug Schaden alles gedankenlos aus")**:
+  Feuerball-Kosten skalieren jetzt mit der Zauberkraft: `4 + spellDmg/3` Mana (früh unverändert 5,
+  bei spellDmg 18 → 10). Der Magier balanciert damit dauerhaft zwischen Schaden, Mana-Pool und
+  Regeneration; die aktuellen Kosten stehen am Skill-Button. Monster blieben unangetastet (Feature Freeze).
 - **Krieger-Ausdauer-Fix bestätigt:** `starve = 0.0` über alle Tiefenbänder (vorher Kernproblem).
 - **Beobachtung für die nächste Runde:** Der eine Bot, der Boss 1 überlebte, lief danach
   fast ungebremst bis Tiefe 25 (Schadens-Quote ≤ 0.23) – Verdacht: nach Boss 1 zu flach.
