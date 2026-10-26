@@ -128,7 +128,6 @@
         <div class="inv-tab active" onclick="invTab(0)">AUSRÜSTUNG</div>
         <div class="inv-tab" onclick="invTab(1)">GRIMOIRE</div>
         <div class="inv-tab" onclick="invTab(2)">ERFOLGE</div>
-        <div class="inv-tab" onclick="invTab(3)">BESTENLISTE</div>
     </div>
     <div id="inv-content-0">
         <div class="equip-slots" id="equip-display"></div>
@@ -259,9 +258,6 @@ function mulberry(){seedState|=0;seedState=seedState+0x6D2B79F5|0;let t=Math.imu
 // Barrierefreiheit: Reduzierte Effekte (kein Zufalls-Flackern, kein UI-Chaos)
 let fxRed=localStorage.getItem('GD4_FX')==='1';
 function toggleFx(){fxRed=!fxRed;localStorage.setItem('GD4_FX',fxRed?'1':'0');let el=$('fx-toggle');if(el)el.innerText='EFFEKTE: '+(fxRed?'REDUZIERT':'VOLL');}
-const API_URL = 'https://glitchdungeon.netlify.app/.netlify/functions/leaderboard';
-// Lokale Datei (file://): Origin ist 'null' - Leaderboard-Requests würden nur CORS-Fehler erzeugen
-const IS_FILE = typeof location!=='undefined' && location.protocol==='file:';
 function sanitizeName(name) {
   if (!name || typeof name !== 'string') return 'Held';
   const div = document.createElement('div');
@@ -270,23 +266,8 @@ function sanitizeName(name) {
   safe = safe.replace(/[<>'"&\/\\]/g, '').replace(/\s+/g, ' ').trim().substring(0, 30);
   return safe || 'Held';
 }
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML.replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-}
-function generateUID() {
-  let uid = localStorage.getItem('GD_UID');
-  if (!uid) {
-    if (window.crypto && window.crypto.randomUUID) {
-      uid = window.crypto.randomUUID();
-    } else {
-      uid = 'uid_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    }
-    localStorage.setItem('GD_UID', uid);
-  }
-  return uid;
-}
+// Die globale Bestenliste ist entfernt. Eine früher angelegte Geräte-ID wird nicht mehr gebraucht.
+try{localStorage.removeItem('GD_UID');}catch(e){}
 
 // --- BIOME CONFIG ---
 // Tile-Typen: 0=Boden, 1=Wand, 2=Eis, 3=Morast(langsam), 4=Lava, 5=Astral, 6=Tümpel(Gift), 7=Kristall, 8=Leere, 9=Labyrinth, 10=Chaos
@@ -654,8 +635,8 @@ const TUT_HINTS={
 let tutRoom=0,tutMsg='',tutMsgTimer=0,tutStartItem=null,tutWaitForKey=false,tutShownShop=false,tutShownExhaust=false;
 
 // --- STATE ---
-let meta={uid:generateUID(),bits:0,hp:10,maxHp:10,mana:10,maxMana:10,stam:10,maxStam:10,dmg:1,mine:1,noise:5,speed:10,def:0,manaRegen:0,stamRegen:1,class:'WARRIOR',critChance:0.05,dodgeChance:0.05,lootMul:1.0,glitchMod:0,scrolls:0,torchCount:0,torchRadius:150,maxLvl:1,shopSlots:2,invSlots:3,shopLuck:0,discount:0,lockedItems:[],spellDmg:0,stealthCost:5,stealthDrain:3,passiveSlots:3,upgradePool:[],equippedPassives:[],skillVar:null};
-if(localStorage.getItem('GD4_Dark_Save')){try{let s=JSON.parse(localStorage.getItem('GD4_Dark_Save'));meta.uid=s.uid||generateUID();meta.bits=s.bits;meta.maxLvl=s.maxLvl;meta.shopSlots=s.shopSlots||2;meta.shopLuck=s.shopLuck||0;meta.invSlots=s.invSlots||3;meta.torchCount=s.torchCount||0;meta.lockedItems=s.lockedItems||[];meta.passiveSlots=s.passiveSlots||3;meta.upgradePool=s.upgradePool||[];meta.equippedPassives=s.equippedPassives||[];}catch(e){localStorage.removeItem('GD4_Dark_Save');}}
+let meta={bits:0,hp:10,maxHp:10,mana:10,maxMana:10,stam:10,maxStam:10,dmg:1,mine:1,noise:5,speed:10,def:0,manaRegen:0,stamRegen:1,class:'WARRIOR',critChance:0.05,dodgeChance:0.05,lootMul:1.0,glitchMod:0,scrolls:0,torchCount:0,torchRadius:150,maxLvl:1,shopSlots:2,invSlots:3,shopLuck:0,discount:0,lockedItems:[],spellDmg:0,stealthCost:5,stealthDrain:3,passiveSlots:3,upgradePool:[],equippedPassives:[],skillVar:null};
+if(localStorage.getItem('GD4_Dark_Save')){try{let s=JSON.parse(localStorage.getItem('GD4_Dark_Save'));meta.bits=s.bits;meta.maxLvl=s.maxLvl;meta.shopSlots=s.shopSlots||2;meta.shopLuck=s.shopLuck||0;meta.invSlots=s.invSlots||3;meta.torchCount=s.torchCount||0;meta.lockedItems=s.lockedItems||[];meta.passiveSlots=s.passiveSlots||3;meta.upgradePool=s.upgradePool||[];meta.equippedPassives=s.equippedPassives||[];}catch(e){localStorage.removeItem('GD4_Dark_Save');}}
 let game={invMode:0,mode:'GAME',map:[],walls:new Uint8Array(GRID*GRID),level:1,biome:0,turnCount:0,p:{x:1,y:1,en:0,dir:{x:0,y:1},hidden:false,lavaCD:0,falling:false,slide:false,slideDir:null},enemies:[],items:[],particles:[],shopItems:[],torches:[],inventory:[],equipment:{WEAPON:null,ARMOR:null,RELIC:null},stats:{},key:{x:0,y:0},exit:{x:0,y:0},timers:{glitch:25,stun:0,shake:0,poison:0,burn:0},lockMode:false,rerollCost:10,lockInput:false,aiming:false,mouse:{x:0,y:0},confused:0,crystalVision:0,boss:null,bossAura:null,chargePreview:null,isBossLevel:false,traps:[],runMods:{},mutators:[],cycle:0,voidGrace:1,levelKills:0};
 
 // --- LOGIC ---
@@ -670,7 +651,7 @@ function enterDungeon(k){
  let n=sanitizeName(prompt("Name des Helden:")||"Anonym");if(!n)return;
  let dm=$('daily-mode');runSeed=(dm&&dm.checked)?parseInt(new Date().toISOString().slice(0,10).replace(/-/g,''),10):null;
  localStorage.removeItem('GD4_Dark_Save');
- meta={uid:generateUID(),name:n,bits:0,hp:10,maxHp:10,mana:10,maxMana:10,stam:10,maxStam:10,dmg:1,mine:1,noise:5,speed:10,def:0,manaRegen:0,stamRegen:1,class:k,critChance:0.05,dodgeChance:0.05,lootMul:1.0,glitchMod:0,scrolls:0,torchCount:0,torchRadius:150,maxLvl:1,shopSlots:2,invSlots:3,shopLuck:0,discount:0,lockedItems:[],spellDmg:0,stealthCost:5,stealthDrain:3,passiveSlots:3,upgradePool:[],equippedPassives:[],skillVar:null};
+ meta={name:n,bits:0,hp:10,maxHp:10,mana:10,maxMana:10,stam:10,maxStam:10,dmg:1,mine:1,noise:5,speed:10,def:0,manaRegen:0,stamRegen:1,class:k,critChance:0.05,dodgeChance:0.05,lootMul:1.0,glitchMod:0,scrolls:0,torchCount:0,torchRadius:150,maxLvl:1,shopSlots:2,invSlots:3,shopLuck:0,discount:0,lockedItems:[],spellDmg:0,stealthCost:5,stealthDrain:3,passiveSlots:3,upgradePool:[],equippedPassives:[],skillVar:null};
  let c=CLASSES[k];Object.assign(meta,{class:k,hp:c.hp,maxHp:c.hp,mana:c.mana,maxMana:c.mana,stam:c.stam,maxStam:c.stam,mine:c.mine,noise:c.noise,speed:c.spd,dmg:1});
  let sItem={id:Math.random(),name:'Start '+c.item,target:k,slot:'WEAPON',col:'#aaa',mods:{dmg:3}};
  if(k==='MAGE')sItem.mods={dmg:1,maxMana:5,spellDmg:1};if(k==='ROGUE')sItem.mods={dmg:3,speed:2};tutStartItem=sItem;
@@ -1737,46 +1718,12 @@ function calcStats(){
  game.stats.maxStam=Math.max(1,game.stats.maxStam);
 }
 
-function save(){localStorage.setItem('GD4_Dark_Save',JSON.stringify({v:1,uid:meta.uid,bits:meta.bits,maxLvl:meta.maxLvl,shopSlots:meta.shopSlots,shopLuck:meta.shopLuck,invSlots:meta.invSlots,torchCount:meta.torchCount,lockedItems:meta.lockedItems||[],passiveSlots:meta.passiveSlots||3,upgradePool:meta.upgradePool||[],equippedPassives:meta.equippedPassives||[]}));}
+function save(){localStorage.setItem('GD4_Dark_Save',JSON.stringify({v:1,bits:meta.bits,maxLvl:meta.maxLvl,shopSlots:meta.shopSlots,shopLuck:meta.shopLuck,invSlots:meta.invSlots,torchCount:meta.torchCount,lockedItems:meta.lockedItems||[],passiveSlots:meta.passiveSlots||3,upgradePool:meta.upgradePool||[],equippedPassives:meta.equippedPassives||[]}));}
 function showHelp(){let c=meta.class,skill=c==='WARRIOR'?'Wirbelwind (Rundumschaden)':c==='ROGUE'?'Unsichtbarkeit (Tarnung)':'Feuerball (Fernkampf)';alert(`STEUERUNG:\nWASD/Pfeile: Bewegen\nLeertaste: Warten\nB: ${skill}\nF: Bannkreis benutzen\nI: Inventar\n\nKLASSE: ${CLASSES[c].n}\n${c==='WARRIOR'?'Stark im Nahkampf, kann Wände schnell zerstören.':c==='ROGUE'?'Schnell und leise, kann sich verstecken.':'Mächtige Zauber, aber wenig Lebensenergie.'}\n\nTIPPS:\n- Sammle den Schlüssel, dann zum Ausgang\n- Vermeide den Realitätsbruch (Glitch)\n- Im Shop: L = Sperren, Leertaste = Neues Angebot\n\nAUDIO-STATUS: ${actx?('Kontext: '+actx.state):'noch nicht gestartet'}\nMusik: ${musOn?'AN':'AUS'} (M) | Sound: ${sndOn?'AN':'AUS'} (N)\nMusik-Timer: ${musTimer?'läuft':'gestoppt'} | Letzter Fehler: ${audioErr||'keiner'}`);}
 function delSave(){if(confirm('Alles löschen (inkl. Grimoire, Erfolge, Tutorial & Einstellungen)?')){['GD4_Dark_Save','GD4_Stats','GD4_Tut','GD4_Snd','GD4_Mus','GD4_FX'].forEach(k=>localStorage.removeItem(k));location.reload();}}
 // Spielstand-Export/Import als Base64-String (Gerätewechsel/Backup)
 function exportSave(){let data=btoa(unescape(encodeURIComponent(JSON.stringify({s:localStorage.getItem('GD4_Dark_Save'),t:localStorage.getItem('GD4_Stats'),u:localStorage.getItem('GD4_Tut')}))));prompt('Spielstand kopieren (Strg/Cmd+C):',data);}
 function importSave(){let d=prompt('Exportierten Spielstand einfügen:');if(!d)return;try{let o=JSON.parse(decodeURIComponent(escape(atob(d.trim()))));if(o.s)localStorage.setItem('GD4_Dark_Save',o.s);if(o.t)localStorage.setItem('GD4_Stats',o.t);if(o.u)localStorage.setItem('GD4_Tut',o.u);location.reload();}catch(e){alert('Ungültiger Spielstand.');}}
-// Leaderboard-Funktionen
-function packGear(){return Object.values(game.equipment).map(e=>e?Math.max(0,RARITIES.findIndex(r=>r.col===e.rarityCol)):0);}
-async function submitScore(){
- if(!meta.name||IS_FILE)return;
- let payload=[meta.name,['WARRIOR','ROGUE','MAGE'].indexOf(meta.class),meta.maxLvl,Math.round((game.turnCount/game.level)*10)/10||0,stats.kills,stats.deaths,packGear(),Date.now(),meta.uid];
- try{
-   const response = await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({data:payload}),signal:AbortSignal.timeout(10000)});
-   if (!response.ok) {
-      if (response.status === 429) { console.warn('Rate limit reached.'); return; }
-      throw new Error(`HTTP ${response.status}`);
-   }
-   const result = await response.json();
-   if (result.rank) console.log(`Score submitted! Rank: ${result.rank}`);
- }catch(e){console.warn('Could not submit score:', e.message);}
-}
-async function fetchLeaderboard(){
- if(IS_FILE){let c3=$('inv-content-3');if(c3)c3.innerHTML='<div style="padding:20px;text-align:center">Bestenliste offline (lokale Datei)<br><span style="font-size:0.8em;opacity:0.6">Verfügbar über einen lokalen Server oder glitchdungeon.netlify.app</span></div>';return;}
- try{
-   let classIdx = ['WARRIOR','ROGUE','MAGE'].indexOf(meta.class);
-   if (classIdx < 0) classIdx = 0;
-   const response = await fetch(`${API_URL}?class=${classIdx}`,{method:'GET',headers:{'Accept':'application/json'},signal:AbortSignal.timeout(5000)});
-   if (!response.ok) throw new Error(`HTTP ${response.status}`);
-   const data = await response.json();
-   if (!data.top || !Array.isArray(data.top)) { console.error('Invalid leaderboard'); return; }
-   renderLeaderboard(data.top);
- }catch(e){let c3=$('inv-content-3');if(c3)c3.innerHTML='<div style="padding:20px;text-align:center">Offline</div>';}
-}
-function renderLeaderboard(data){
- let h='<style>.lb-t{width:100%;border-collapse:collapse;font-size:14px}.lb-t th{padding:8px 4px;border-bottom:2px solid #555;text-align:left;font-family:var(--font-display);color:var(--accent-color);white-space:nowrap}.lb-t td{padding:6px 4px;border-bottom:1px solid #222}.lb-g{display:inline-block;width:10px;height:10px;margin:0 2px;border:1px solid #000;box-shadow:0 0 3px rgba(0,0,0,0.5)}@media(max-width:480px){.lb-t{font-size:11px}.lb-t th,.lb-t td{padding:4px 2px}.lb-g{width:8px;height:8px}}</style><table class="lb-t"><tr><th title="Platzierung">Rang<th title="Name des Helden">Name<th title="Maximal erreichte Tiefe">Tiefe<th title="Durchschnittliche Züge pro Ebene">Züge/Lvl<th title="Durchschnittlich getötete Gegner bis zum Tod">K/D<th title="Ausrüstung (Waffe/Rüstung/Relikt)">Gear</tr>';
- data.forEach((e,i)=>{let g=e[6],gear=['Waffe','Rüstung','Relikt'].map((n,j)=>{let r=RARITIES[g[j]]||{col:'#333',name:'Keine'};return`<span class="lb-g" style="background:${r.col}" title="${r.name} ${n}"></span>`}).join('');
- const name = escapeHtml(e[0]);
- h+=`<tr><td>${i+1}<td title="${name}">${name.length>12?name.slice(0,11)+'…':name}<td>${e[2]}<td>${e[3]}<td>${e[4]}/${e[5]}<td>${gear}</tr>`;});
- $('inv-content-3').innerHTML=h+'</table>';
-}
 // === RUN-EVENTS: Text-Entscheidungen zwischen den Ebenen ===
 function runEvent(next){
  sfx('glitch');
@@ -1808,7 +1755,7 @@ function triggerBossVictory(){game.mode='SHOP';game.rerollCost=10;generateShop()
   meta.scrolls=Math.min(5,(meta.scrolls||0)+1);meta.hp=game.stats.maxHp;addParticle(game.p.x,game.p.y,'+1 BANNKREIS & HEILUNG','#ffd700');
  }
 }
-function triggerGameOver(){blFlush('death');$('btn-reincarnate').innerText="Reinkarnation";stats.deaths++;saveStats();submitScore();game.mode='SHOP';game.rerollCost=10;generateShop();$('shop-ui').style.display='flex';
+function triggerGameOver(){blFlush('death');$('btn-reincarnate').innerText="Reinkarnation";stats.deaths++;saveStats();game.mode='SHOP';game.rerollCost=10;generateShop();$('shop-ui').style.display='flex';
  // Tutorial abgeschlossen? Dann Level 0 verfügbar aber Level 1 vorausgewählt
  let tutDone=localStorage.getItem('GD4_Tut')==='1';
  if(meta.maxLvl>1||tutDone){
@@ -1956,7 +1903,7 @@ function inv_toggle(){let el=$('inv-screen');if(el.style.display==='block'){el.s
 function cycleInvMode(){game.invMode=(game.mode==='SHOP')?((game.invMode===0)?2:0):((game.invMode===0)?1:0);updateInvModeUI();}
 function updateInvModeUI(){let btn=$('inv-mode-btn'),grid=$('inv-display');grid.className='inv-grid';if(game.invMode===0){btn.innerHTML="⚔️ AUSRÜSTEN <span style='font-size:0.7em;opacity:0.6'>(Klick zum Wechseln)</span>";btn.style.color="#0f0";btn.style.borderColor="#0f0";btn.style.background="#0a1a0a";}else if(game.invMode===1){btn.innerHTML="🗑️ WEGWERFEN <span style='font-size:0.7em;opacity:0.6'>(Klick zum Wechseln)</span>";btn.style.color="#f00";btn.style.borderColor="#f00";btn.style.background="#1a0a0a";grid.classList.add('mode-trash');}else if(game.invMode===2){btn.innerHTML="💰 VERKAUFEN <span style='font-size:0.7em;opacity:0.6'>(Klick zum Wechseln)</span>";btn.style.color="#ffd700";btn.style.borderColor="#ffd700";btn.style.background="#1a1a0a";grid.classList.add('mode-sell');}}
 let invTabIdx=0;
-function invTab(i){invTabIdx=i;document.querySelectorAll('.inv-tab').forEach((t,j)=>t.classList.toggle('active',i===j));for(let j=0;j<4;j++){let el=$('inv-content-'+j);if(el)el.style.display=i===j?'block':'none';}if(i===1)renderGrim();if(i===2)renderAch();if(i===3){let d=$('inv-content-3');if(!d){d=document.createElement('div');d.id='inv-content-3';d.style.display='block';$('inv-screen').appendChild(d);}fetchLeaderboard();}}
+function invTab(i){invTabIdx=i;document.querySelectorAll('.inv-tab').forEach((t,j)=>t.classList.toggle('active',i===j));for(let j=0;j<3;j++){let el=$('inv-content-'+j);if(el)el.style.display=i===j?'block':'none';}if(i===1)renderGrim();if(i===2)renderAch();}
 function renderGrim(){let cnt=stats.grimoire.length,bk=stats.bossKills||0,h='';
  // MUSIK DER TIEFEN: alle Tracks von Anfang an probehörbar; AUTO folgt dem Biom
  h+=`<div class="grim-count">🎵 MUSIK DER TIEFEN <span style="font-size:0.75em;opacity:0.7">(Probehören - beim Biomwechsel automatisch zurück auf AUTO)</span></div><div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:14px;justify-content:center">`;

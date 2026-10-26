@@ -1,6 +1,15 @@
+# Statische Seite ohne Build-Schritt und ohne Serverseite: Die globale Bestenliste samt
+# Netlify Function ist entfernt. Veröffentlicht wird nur das Spiel – pentest/ und Notizen bleiben draußen.
 [build]
-  command = "cd netlify/functions && npm install"
-  functions = "netlify/functions"
+  publish = "public"
 
-[functions]
-  node_bundler = "esbuild"
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # 'unsafe-inline' ist nötig: Das Spiel steckt in einem Inline-Skript und nutzt onclick-Attribute.
+    # Alles andere ist dicht: keine Netzwerkzugriffe, keine fremden Hosts, keine Plug-ins, kein Einbetten.
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "no-referrer"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"

@@ -12,7 +12,7 @@ Ein atmosphärischer Dark-Fantasy Roguelike Dungeon Crawler im Browser.
 
 ## Spielen
 
-Öffne `index.html` in einem modernen Browser – keine Installation erforderlich.
+Öffne `public/index.html` in einem modernen Browser – keine Installation erforderlich.
 
 ---
 
@@ -124,8 +124,9 @@ Alternativ: Maussteuerung (Klick zum Bewegen/Angreifen, Magier: Klick für Feuer
 ## Projektstruktur
 
 ```
-├── index.html      # Komplettes Spiel (HTML + CSS + JS)
-├── impressum.html  # Impressum & Datenschutz
+├── public/            # Wird veröffentlicht – nur Spieldateien
+│   ├── index.html     # Komplettes Spiel (HTML + CSS + JS)
+│   └── impressum.html # Impressum & Datenschutz
 └── README.md
 ```
 
