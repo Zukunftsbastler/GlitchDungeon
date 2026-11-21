@@ -12,7 +12,14 @@ Ein atmosphärischer Dark-Fantasy Roguelike Dungeon Crawler im Browser.
 
 ## Spielen
 
-Öffne `public/index.html` in einem modernen Browser – keine Installation erforderlich.
+Öffne `public/index.html` (Version 1) oder `public/v2.html` (Version 2: *Echoes of the Core*) in einem modernen Browser – keine Installation erforderlich. Vom Startbildschirm von Version 1 führt ein Button direkt zu Version 2 (und zurück).
+
+### Version 2: *Echoes of the Core* (`public/v2.html`)
+Eigenständige Neuinterpretation im selben Single-File-/Demoscene-Stil (getrennter Speicher `GD5_*`, Version 1 bleibt unverändert):
+- **3-Ebenen-Biom-Takt & echtes Finale:** 10 Biome mit eigenen Architektur-Generatoren, taktischen Kontern (Sprengfässer, Riss-Wände, Schatten-Alkoven, Portal-Paare, Knochen-Obelisken, Runen-Schalter) und skalierenden Karten (`20×20` → `28×28` + Minimap) bis zu **Tiefe 30 („Der Kern")**, danach optionaler Endlos-/NG+-Abstieg (`Tiefe 31+`).
+- **Taktische Bosse & dynamische Animationen:** 10 Boss-Arenen mit klaren Boden-Telegraphen und Klassen-Kontern, 3 unterscheidbare Helden-Silhouetten, weiches Tile-Tweening, 120/144-Hz-Delta-Time und animierte 16×16-Kreaturen.
+- **Web-Audio-Synthesizer:** Lookahead-Sequencer mit Hall/Delay-Bus, Akkord-Pads, Bassline, A–A'–B–A-Leitmotiv und Stealth-Lowpass.
+- **Mobile-First DOM-UI:** Side-by-Side-Item-Vergleich auf Deutsch, DOM-Schattenhändler mit Gratis-Pin (`📌`), Run-Schmiede, Auto-Equip freier Passiv-Slots, Run-Zusammenfassung, A*-Pfadführung und nicht-blockierendem Tutorial.
 
 ---
 
